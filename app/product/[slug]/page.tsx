@@ -5,25 +5,70 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ShoppingCart, Minus, Plus, ChevronRight, Star, MessageCircle, Share2, Heart, MapPin, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'motion/react';
-import { useProductsStore } from '../../../store/productsStore';
+import { motion } from 'motion/react';
+import { useProductsStore, ApiProduct } from '../../../store/productsStore';
+import type { Category } from '../../../store/productsStore';
 import { useCartStore } from '../../../store/cartStore';
 import { useFavoritesStore } from '../../../store/favoritesStore';
 import { formatPrice } from '../../../lib/utils';
 import { ProductCard } from '../../../components/ProductCard';
+import { Product } from '../../../types';
+
+const FALLBACK_IMAGE = '/service/image-unavailable.png';
+
+function mapDetailProduct(item: ApiProduct): Partial<Product> {
+  return {
+    type: item.type || '',
+    brand: item.brand || '',
+    subcategory: item.subcategory || '',
+    description: item.description || '',
+    shortDescription: item.shortDescription || item.description || '',
+    // Не перезаписываем если пустые — оставляем fallback из store
+    ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
+    ...(item.images?.length ? { images: item.images } : {}),
+    characteristics: {
+      ...(item.article ? { 'Артикул': item.article } : {}),
+      ...(item.characteristics || {}),
+    },
+  };
+}
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
   const products = useProductsStore((s) => s.products);
-  const product = products.find((p) => p.slug === slug);
+  const categories = useProductsStore((s) => s.categories);
+  const baseProduct = products.find((p) => p.slug === slug);
 
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
-  const cartItem = items.find((item) => item.id === product?.id);
+  // Находим slugи для хлебных крошек по name из товара
+  function findSlugs(cats: Category[], catName: string, subName: string, typeName: string) {
+    const cat = cats.find((c) => c.name === catName);
+    const grp = cat?.groups.find((g) => g.name === subName);
+    const typ = grp?.items.find((i) => i.name === typeName);
+    return { catSlug: cat?.slug, subSlug: grp?.slug, typeSlug: typ?.slug };
+  }
+
+  // Дозагружаем детальные данные (характеристики) по ID
+  const [detail, setDetail] = useState<Partial<Product> | null>(null);
+  useEffect(() => {
+    if (!baseProduct?.id) return;
+    fetch(`/api/1c/catalog/${baseProduct.id}`)
+      .then((r) => r.json())
+      .then((data: ApiProduct) => setDetail(mapDetailProduct(data)))
+      .catch(() => {});
+  }, [baseProduct?.id]);
+
+  // Мержим базовый товар с детальными данными
+  const product: Product | undefined = baseProduct
+    ? { ...baseProduct, ...detail }
+    : undefined;
+
+  const { addItem, updateQuantity, removeItem } = useCartStore();
+  const cartItem = useCartStore((state) => state.items.find((item) => item.id === product?.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const isFavorite = useFavoritesStore((state) => state.favorites.includes(product?.id || ''));
 
-  const [activeImage, setActiveImage] = useState(product?.imageUrl || '');
+  const [activeImage, setActiveImage] = useState(product?.imageUrl || FALLBACK_IMAGE);
 
   useEffect(() => {
     const handleResize = () => document.documentElement.classList.toggle('has-floating-bar', window.innerWidth < 1024);
@@ -46,7 +91,7 @@ export default function ProductPage() {
   }
 
   const similarProducts = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
-  const mockColors = product.images?.length > 0 ? product.images : [product.imageUrl, product.imageUrl, product.imageUrl];
+  const mockColors = product.images?.length > 0 ? product.images : [product.imageUrl || FALLBACK_IMAGE];
   const currentIndex = mockColors.indexOf(activeImage);
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -68,10 +113,31 @@ export default function ProductPage() {
           <Link href="/" className="hover:text-emerald-600 transition-colors">Главная</Link>
           <ChevronRight size={14} className="text-zinc-400" />
           <Link href="/catalog" className="hover:text-emerald-600 transition-colors">Каталог</Link>
-          <ChevronRight size={14} className="text-zinc-400" />
-          <Link href={`/catalog?category=${encodeURIComponent(product.category)}`} className="hover:text-emerald-600 transition-colors">{product.category}</Link>
-          <ChevronRight size={14} className="text-zinc-400" />
-          <span className="text-zinc-900">{product.brand}</span>
+          {(() => {
+            const { catSlug, subSlug, typeSlug } = findSlugs(categories, product.category, product.subcategory, product.type);
+            return (
+              <>
+                {product.category && catSlug && (
+                  <>
+                    <ChevronRight size={14} className="text-zinc-400" />
+                    <Link href={`/catalog?category=${catSlug}`} className="hover:text-emerald-600 transition-colors">{product.category}</Link>
+                  </>
+                )}
+                {product.subcategory && subSlug && (
+                  <>
+                    <ChevronRight size={14} className="text-zinc-400" />
+                    <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}`} className="hover:text-emerald-600 transition-colors">{product.subcategory}</Link>
+                  </>
+                )}
+                {product.type && typeSlug && (
+                  <>
+                    <ChevronRight size={14} className="text-zinc-400" />
+                    <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}&type=${typeSlug}`} className="hover:text-emerald-600 transition-colors">{product.type}</Link>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </nav>
       </motion.div>
 
@@ -85,9 +151,19 @@ export default function ProductPage() {
             ))}
           </div>
           <div className="relative flex-1 bg-white rounded-3xl overflow-hidden aspect-[3/4] shadow-sm ring-1 ring-zinc-200/50 group touch-none">
-            <AnimatePresence mode="wait">
-              <motion.img key={activeImage} drag="x" dragConstraints={{ left: 0, right: 0 }} onDragEnd={handleDragEnd} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} transition={{ duration: 0.3 }} src={activeImage} alt={product.name} className="h-full w-full object-cover cursor-grab active:cursor-grabbing" referrerPolicy="no-referrer" />
-            </AnimatePresence>
+            <motion.img
+              key={activeImage}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={handleDragEnd}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              src={activeImage}
+              alt={product.name}
+              className="h-full w-full object-cover cursor-grab active:cursor-grabbing"
+              referrerPolicy="no-referrer"
+            />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 sm:hidden">
               {mockColors.map((_, idx) => (
                 <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${currentIndex === idx ? 'w-6 bg-emerald-500' : 'w-1.5 bg-zinc-300'}`} />
@@ -131,12 +207,43 @@ export default function ProductPage() {
               </button>
             </div>
             <div className="flex flex-col text-sm">
-              {Object.entries(product.characteristics).map(([key, value]) => (
-                <div key={key} className="flex py-2 border-b border-zinc-100 last:border-0">
-                  <span className="w-1/2 text-zinc-500 font-medium pr-4">{key}</span>
-                  <span className="w-1/2 text-zinc-900 font-medium">{value}</span>
-                </div>
-              ))}
+              {(() => {
+                const { catSlug, subSlug, typeSlug } = findSlugs(categories, product.category, product.subcategory, product.type);
+                return (
+                  <>
+                    {product.brand && (
+                      <div className="flex py-2 border-b border-zinc-100">
+                        <span className="w-1/2 text-zinc-500 font-medium pr-4">Бренд</span>
+                        <Link href={`/catalog?brand=${encodeURIComponent(product.brand)}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.brand}</Link>
+                      </div>
+                    )}
+                    {product.subcategory && (
+                      <div className="flex py-2 border-b border-zinc-100">
+                        <span className="w-1/2 text-zinc-500 font-medium pr-4">Категория</span>
+                        {catSlug && subSlug
+                          ? <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.subcategory}</Link>
+                          : <span className="w-1/2 text-zinc-900 font-medium">{product.subcategory}</span>
+                        }
+                      </div>
+                    )}
+                    {product.type && (
+                      <div className="flex py-2 border-b border-zinc-100">
+                        <span className="w-1/2 text-zinc-500 font-medium pr-4">Тип</span>
+                        {catSlug && subSlug && typeSlug
+                          ? <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}&type=${typeSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.type}</Link>
+                          : <span className="w-1/2 text-zinc-900 font-medium">{product.type}</span>
+                        }
+                      </div>
+                    )}
+                    {Object.entries(product.characteristics).map(([key, value]) => (
+                      <div key={key} className="flex py-2 border-b border-zinc-100 last:border-0">
+                        <span className="w-1/2 text-zinc-500 font-medium pr-4">{key}</span>
+                        <span className="w-1/2 text-zinc-900 font-medium">{value}</span>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </motion.div>

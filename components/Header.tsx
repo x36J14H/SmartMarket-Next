@@ -1,7 +1,7 @@
 'use client';
 
 import { ShoppingCart, Menu, X, Heart, User } from 'lucide-react';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCartStore } from '../store/cartStore';
@@ -10,7 +10,9 @@ import { AISearchBar } from './AISearchBar';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const totalItems = useCartStore((state) => state.getTotalItems());
+  const totalItems = useCartStore((state) =>
+    state.items.reduce((sum, item) => sum + item.quantity, 0)
+  );
   const favoritesCount = useFavoritesStore((state) => state.favorites.length);
 
   const navLinks = [
@@ -51,7 +53,9 @@ export function Header() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
-          <AISearchBar className="hidden sm:block mx-4" />
+          <Suspense fallback={null}>
+            <AISearchBar className="hidden sm:block mx-4" />
+          </Suspense>
 
           <Link href="/profile" className="relative flex items-center gap-2 rounded-2xl p-2 text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 transition-colors">
             <User size={20} />
@@ -86,7 +90,9 @@ export function Header() {
             className="border-t border-zinc-200/50 bg-white/95 backdrop-blur-xl px-4 py-6 md:hidden shadow-lg overflow-hidden"
           >
             <div className="mb-6">
-              <AISearchBar className="w-full" onResultClick={() => setIsMenuOpen(false)} />
+              <Suspense fallback={null}>
+                <AISearchBar className="w-full" onResultClick={() => setIsMenuOpen(false)} />
+              </Suspense>
             </div>
             <nav className="flex flex-col gap-6">
               {navLinks.map((link) => (

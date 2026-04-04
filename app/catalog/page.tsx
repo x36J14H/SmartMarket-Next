@@ -6,6 +6,21 @@ import { Filter, X, LayoutGrid, List, ArrowLeft, ArrowRight } from 'lucide-react
 import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../../components/ProductCard';
 import { useProductsStore } from '../../store/productsStore';
+import type { Category } from '../../store/productsStore';
+
+// Хелперы: slug → name для фильтрации товаров
+function categoryNameBySlug(categories: Category[], slug: string) {
+  return categories.find((c) => c.slug === slug)?.name ?? slug;
+}
+function subcategoryNameBySlug(categories: Category[], catSlug: string, subSlug: string) {
+  const cat = categories.find((c) => c.slug === catSlug);
+  return cat?.groups.find((g) => g.slug === subSlug)?.name ?? subSlug;
+}
+function typeNameBySlug(categories: Category[], catSlug: string, subSlug: string, typeSlug: string) {
+  const cat = categories.find((c) => c.slug === catSlug);
+  const grp = cat?.groups.find((g) => g.slug === subSlug);
+  return grp?.items.find((i) => i.slug === typeSlug)?.name ?? typeSlug;
+}
 
 function CatalogContent() {
   const { products, categories, brands } = useProductsStore();
@@ -18,6 +33,7 @@ function CatalogContent() {
 
   const categoryParam = searchParams.get('category');
   const subcategoryParam = searchParams.get('subcategory');
+  const typeParam = searchParams.get('type');
   const brandParam = searchParams.getAll('brand');
   const minPriceParam = searchParams.get('minPrice');
   const maxPriceParam = searchParams.get('maxPrice');
@@ -40,8 +56,9 @@ function CatalogContent() {
 
   const availableCharacteristics = useMemo(() => {
     if (!categoryParam) return {};
+    const catName = categoryNameBySlug(categories, categoryParam);
     const chars: Record<string, Set<string>> = {};
-    products.filter((p) => p.category === categoryParam).forEach((p) => {
+    products.filter((p) => p.category === catName).forEach((p) => {
       Object.entries(p.characteristics).forEach(([key, value]) => {
         if (key === 'Бренд') return;
         if (!chars[key]) chars[key] = new Set();
@@ -81,9 +98,15 @@ function CatalogContent() {
   };
 
   const filteredProducts = useMemo(() => {
+    // Конвертируем slugи в names для сравнения с полями товаров
+    const catName = categoryParam ? categoryNameBySlug(categories, categoryParam) : null;
+    const subName = subcategoryParam ? subcategoryNameBySlug(categories, categoryParam!, subcategoryParam) : null;
+    const typeName = typeParam ? typeNameBySlug(categories, categoryParam!, subcategoryParam!, typeParam) : null;
+
     return products.filter((p) => {
-      if (categoryParam && p.category !== categoryParam) return false;
-      if (subcategoryParam && p.subcategory !== subcategoryParam) return false;
+      if (catName && p.category !== catName) return false;
+      if (subName && p.subcategory !== subName) return false;
+      if (typeName && p.type !== typeName) return false;
       if (brandParam.length > 0 && !brandParam.includes(p.brand)) return false;
       if (minPriceParam && p.price < Number(minPriceParam)) return false;
       if (maxPriceParam && p.price > Number(maxPriceParam)) return false;
@@ -95,33 +118,38 @@ function CatalogContent() {
       }
       return true;
     });
-  }, [categoryParam, subcategoryParam, brandParam, minPriceParam, maxPriceParam, charParams, products]);
+  }, [categoryParam, subcategoryParam, typeParam, brandParam, minPriceParam, maxPriceParam, charParams, products, categories]);
 
   const activeFilters = useMemo(() => {
     const filters = [];
-    if (categoryParam) filters.push({ id: `category-${categoryParam}`, type: 'category', label: categoryParam, value: categoryParam });
-    if (subcategoryParam) filters.push({ id: `subcategory-${subcategoryParam}`, type: 'subcategory', label: subcategoryParam, value: subcategoryParam });
+    // category/subcategory/type не показываем — они управляются сайдбаром
     brandParam.forEach((brand) => filters.push({ id: `brand-${brand}`, type: 'brand', label: brand, value: brand }));
     if (minPriceParam || maxPriceParam) {
-      let label = '';
-      if (minPriceParam && maxPriceParam) label = `От ${minPriceParam} до ${maxPriceParam} ₽`;
-      else if (minPriceParam) label = `От ${minPriceParam} ₽`;
-      else if (maxPriceParam) label = `До ${maxPriceParam} ₽`;
-      filters.push({ id: 'price', type: 'price', label, value: 'price' });
+      const min = Number(minPriceParam);
+      const max = Number(maxPriceParam);
+      if (min !== 0 || max !== 0) {
+        let label = '';
+        if (minPriceParam && maxPriceParam) label = `От ${minPriceParam} до ${maxPriceParam} ₽`;
+        else if (minPriceParam) label = `От ${minPriceParam} ₽`;
+        else if (maxPriceParam) label = `До ${maxPriceParam} ₽`;
+        filters.push({ id: 'price', type: 'price', label, value: 'price' });
+      }
     }
     Object.entries(charParams).forEach(([charName, values]) => {
       values.forEach((val) => filters.push({ id: `char-${charName}-${val}`, type: `char_${charName}`, label: `${charName}: ${val}`, value: val }));
     });
     return filters;
-  }, [categoryParam, subcategoryParam, brandParam, minPriceParam, maxPriceParam, charParams]);
+  }, [brandParam, minPriceParam, maxPriceParam, charParams]);
 
   const removeFilter = (filter: { type: string; value: string }) => {
     const newParams = new URLSearchParams(searchParams.toString());
     if (filter.type === 'category') {
-      newParams.delete('category'); newParams.delete('subcategory');
+      newParams.delete('category'); newParams.delete('subcategory'); newParams.delete('type');
       for (const key of Array.from(newParams.keys())) { if (key.startsWith('char_')) newParams.delete(key); }
     } else if (filter.type === 'subcategory') {
-      newParams.delete('subcategory');
+      newParams.delete('subcategory'); newParams.delete('type');
+    } else if (filter.type === 'type') {
+      newParams.delete('type');
     } else if (filter.type === 'brand') {
       const currentBrands = newParams.getAll('brand');
       newParams.delete('brand');
@@ -140,6 +168,18 @@ function CatalogContent() {
 
   if (!categoryParam && !subcategoryParam) {
     const activeCategoryObj = categories.find((c) => c.name === activeCategory) || categories[0];
+
+    if (categories.length === 0) {
+      return (
+        <div className="mx-auto max-w-[1400px] px-4 py-8 sm:py-12 sm:px-6 lg:px-8 bg-zinc-50 min-h-[80vh] flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-zinc-500 font-medium text-lg">Каталог недоступен</p>
+            <p className="text-zinc-400 text-sm mt-2">Не удалось загрузить данные с сервера</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-[1400px] px-4 py-8 sm:py-12 sm:px-6 lg:px-8 bg-zinc-50 min-h-[80vh]">
         <div className="flex flex-col md:flex-row gap-8 md:gap-12">
@@ -160,17 +200,41 @@ function CatalogContent() {
               <ArrowLeft size={18} />Назад к категориям
             </button>
             <motion.div key={activeCategoryObj?.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 mb-8 sm:mb-10">{activeCategoryObj?.name}</h2>
+              <button
+                onClick={() => { const p = new URLSearchParams(); p.set('category', activeCategoryObj.slug); router.push(`/catalog?${p.toString()}`); }}
+                className="text-2xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 mb-8 sm:mb-10 hover:text-emerald-600 transition-colors text-left"
+              >
+                {activeCategoryObj?.name}
+              </button>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 sm:gap-x-12 gap-y-8 sm:gap-y-12">
                 {activeCategoryObj?.groups?.map((group) => (
                   <div key={group.name} className="space-y-4 sm:space-y-5">
-                    <h3 className="font-bold text-zinc-900 text-base sm:text-lg border-b border-zinc-100 pb-2">{group.name}</h3>
+                    <button
+                      onClick={() => {
+                        const p = new URLSearchParams();
+                        p.set('category', activeCategoryObj.slug);
+                        p.set('subcategory', group.slug);
+                        router.push(`/catalog?${p.toString()}`);
+                      }}
+                      className="font-bold text-zinc-900 text-base sm:text-lg border-b border-zinc-100 pb-2 w-full text-left hover:text-emerald-600 transition-colors"
+                    >
+                      {group.name}
+                    </button>
                     <ul className="space-y-2 sm:space-y-3">
                       {group.items.map((item) => (
-                        <li key={item}>
-                          <button onClick={() => { const p = new URLSearchParams(); p.set('category', activeCategoryObj.name); p.set('subcategory', item); router.push(`/catalog?${p.toString()}`); }} className="text-sm font-medium text-zinc-500 hover:text-emerald-600 text-left transition-colors flex items-center group">
+                        <li key={item.slug}>
+                          <button
+                            onClick={() => {
+                              const p = new URLSearchParams();
+                              p.set('category', activeCategoryObj.slug);
+                              p.set('subcategory', group.slug);
+                              p.set('type', item.slug);
+                              router.push(`/catalog?${p.toString()}`);
+                            }}
+                            className="text-sm font-medium text-zinc-500 hover:text-emerald-600 text-left transition-colors flex items-center group"
+                          >
                             <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 mr-2 group-hover:bg-emerald-500 transition-colors"></span>
-                            {item}
+                            {item.name}
                           </button>
                         </li>
                       ))}
@@ -188,7 +252,15 @@ function CatalogContent() {
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-200/60 pb-6 gap-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">{subcategoryParam || categoryParam || 'Каталог товаров'}</h1>
+        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">
+          {typeParam
+            ? typeNameBySlug(categories, categoryParam!, subcategoryParam!, typeParam)
+            : subcategoryParam
+            ? subcategoryNameBySlug(categories, categoryParam!, subcategoryParam)
+            : categoryParam
+            ? categoryNameBySlug(categories, categoryParam)
+            : 'Каталог товаров'}
+        </h1>
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center bg-white rounded-xl p-1 shadow-sm ring-1 ring-zinc-200/50">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}><LayoutGrid size={18} /></button>
@@ -211,9 +283,19 @@ function CatalogContent() {
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900">Категории</h3>
               <div className="mt-5 space-y-3">
-                <button onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.delete('category'); p.delete('subcategory'); setSearchParams(p); }} className={`block text-sm font-medium transition-colors ${!categoryParam ? 'text-emerald-600 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}>Все категории</button>
+                <button onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.delete('category'); p.delete('subcategory'); p.delete('type'); setSearchParams(p); }} className={`block text-sm font-medium transition-colors ${!categoryParam ? 'text-emerald-600 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}>Все категории</button>
                 {categories.map((cat) => (
-                  <button key={cat.name} onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.set('category', cat.name); p.delete('subcategory'); setSearchParams(p); }} className={`block text-sm font-medium transition-colors ${categoryParam === cat.name ? 'text-emerald-600 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}>{cat.name}</button>
+                  <div key={cat.slug}>
+                    <button onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.set('category', cat.slug); p.delete('subcategory'); p.delete('type'); setSearchParams(p); }} className={`block text-sm font-medium transition-colors ${categoryParam === cat.slug && !subcategoryParam ? 'text-emerald-600 font-bold' : 'text-zinc-500 hover:text-zinc-900'}`}>{cat.name}</button>
+                    {categoryParam === cat.slug && cat.groups.map((group) => (
+                      <div key={group.slug} className="ml-3 mt-2 space-y-1.5">
+                        <button onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.set('subcategory', group.slug); p.delete('type'); setSearchParams(p); }} className={`block text-sm transition-colors ${subcategoryParam === group.slug ? 'text-emerald-600 font-semibold' : 'text-zinc-400 hover:text-zinc-700'}`}>{group.name}</button>
+                        {subcategoryParam === group.slug && group.items.map((item) => (
+                          <button key={item.slug} onClick={() => { const p = new URLSearchParams(searchParams.toString()); p.set('type', item.slug); setSearchParams(p); }} className={`block text-xs ml-2 transition-colors ${typeParam === item.slug ? 'text-emerald-600 font-semibold' : 'text-zinc-400 hover:text-zinc-600'}`}>— {item.name}</button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>

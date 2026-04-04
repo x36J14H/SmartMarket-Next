@@ -19,8 +19,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   viewMode = 'grid',
   aspectRatio = 'aspect-[4/5]',
 }) => {
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
-  const cartItem = items.find((item) => item.id === product.id);
+  const { addItem, updateQuantity, removeItem } = useCartStore();
+  const cartItem = useCartStore((state) => state.items.find((item) => item.id === product.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const isFavorite = useFavoritesStore((state) => state.favorites.includes(product.id));
 

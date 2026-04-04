@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+// Ограничиваем каталог — берём не более 200 товаров, только нужные поля
+const MAX_PRODUCTS_IN_PROMPT = 200;
+
 function buildSystemInstruction(products: unknown[]) {
-  const simplified = (products as any[]).map((p) => ({
+  const simplified = (products as any[]).slice(0, MAX_PRODUCTS_IN_PROMPT).map((p) => ({
     id: p.id,
     name: p.name,
     category: p.category,
     price: p.price,
-    description: p.shortDescription,
     link: `/product/${p.slug}`,
   }));
 

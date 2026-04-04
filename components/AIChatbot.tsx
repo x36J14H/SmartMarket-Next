@@ -47,7 +47,14 @@ export function AIChatbot() {
       const res = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.text, history: historyRef.current, products }),
+        body: JSON.stringify({
+          message: userMessage.text,
+          history: historyRef.current,
+          // Передаём только нужные поля, не весь объект
+          products: products.slice(0, 200).map((p) => ({
+            id: p.id, name: p.name, category: p.category, price: p.price, slug: p.slug,
+          })),
+        }),
       });
       const data = await res.json();
       const text = data.text || 'Извините, не смог сгенерировать ответ.';
