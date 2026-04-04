@@ -17,6 +17,19 @@ export async function GET(
       signal: AbortSignal.timeout(15000),
     });
 
+    const contentType = res.headers.get('content-type') ?? '';
+
+    if (contentType.startsWith('image/')) {
+      const buffer = await res.arrayBuffer();
+      return new NextResponse(buffer, {
+        status: res.status,
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (e) {

@@ -16,16 +16,23 @@ import { Product } from '../../../types';
 
 const FALLBACK_IMAGE = '/service/image-unavailable.png';
 
+function toImageUrl(productId: string, fileId: string | undefined): string {
+  if (!fileId) return FALLBACK_IMAGE;
+  return `/api/1c/catalog/${productId}/images/${fileId}`;
+}
+
 function mapDetailProduct(item: ApiProduct): Partial<Product> {
+  const mainImage = toImageUrl(item.id, item.imageUrl);
   return {
     type: item.type || '',
     brand: item.brand || '',
     subcategory: item.subcategory || '',
     description: item.description || '',
     shortDescription: item.shortDescription || item.description || '',
-    // Не перезаписываем если пустые — оставляем fallback из store
-    ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
-    ...(item.images?.length ? { images: item.images } : {}),
+    ...(item.imageUrl ? { imageUrl: mainImage } : {}),
+    ...(item.images?.length
+      ? { images: item.images.map((fid) => toImageUrl(item.id, fid)) }
+      : {}),
     characteristics: {
       ...(item.article ? { 'Артикул': item.article } : {}),
       ...(item.characteristics || {}),

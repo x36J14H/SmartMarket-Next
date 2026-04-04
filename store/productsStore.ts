@@ -38,7 +38,14 @@ export type Category      = { name: string; slug: string; groups: CategoryGroup[
 
 const FALLBACK_IMAGE = '/service/image-unavailable.png';
 
+// Строим URL изображения через наш прокси
+function imageUrl(productId: string, fileId: string | undefined): string {
+  if (!fileId) return FALLBACK_IMAGE;
+  return `/api/1c/catalog/${productId}/images/${fileId}`;
+}
+
 function mapApiProduct(item: ApiProduct): Product {
+  const mainImage = imageUrl(item.id, item.imageUrl);
   return {
     id: item.id,
     slug: item.slug || item.article || item.id,
@@ -51,8 +58,10 @@ function mapApiProduct(item: ApiProduct): Product {
     oldPrice: item.oldPrice,
     description: item.description || '',
     shortDescription: item.shortDescription || item.description || '',
-    imageUrl: item.imageUrl || FALLBACK_IMAGE,
-    images: item.images?.length ? item.images : [item.imageUrl || FALLBACK_IMAGE],
+    imageUrl: mainImage,
+    images: item.images?.length
+      ? item.images.map((fid) => imageUrl(item.id, fid))
+      : [mainImage],
     characteristics: {
       ...(item.article ? { 'Артикул': item.article } : {}),
       ...(item.characteristics || {}),

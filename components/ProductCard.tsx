@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { ShoppingCart, Heart, Minus, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Product } from '../types';
@@ -56,11 +57,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl bg-zinc-50 shrink-0 ${
         viewMode === 'list' ? `w-full sm:w-40 ${aspectRatio} sm:aspect-square` : aspectRatio
       }`}>
-        <img
+        <Image
           src={product.imageUrl}
           alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-          referrerPolicy="no-referrer"
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
         />
         <button
           onClick={handleToggleFavorite}
