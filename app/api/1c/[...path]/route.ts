@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const BASE_URL = process.env.ONEC_BASE_URL ?? 'http://localhost/SmartMarket/hs/site-api';
-// Basic Auth: "Администратор" без пароля
-const AUTH_HEADER = 'Basic ' + Buffer.from('Администратор:').toString('base64');
+const USERNAME = process.env.ONEC_USERNAME ?? 'Администратор';
+const PASSWORD = process.env.ONEC_PASSWORD ?? '';
+
+const AUTH_HEADER = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
+
+// Разрешённые префиксы путей — защита от SSRF
+const ALLOWED_PREFIXES = ['catalog', 'categories'];
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const url = `${BASE_URL}/${path.join('/')}`;
+  const joined = path.join('/');
+
+  if (!ALLOWED_PREFIXES.some((prefix) => joined.startsWith(prefix))) {
+    return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
+  }
+
+  const url = `${BASE_URL}/${joined}`;
 
   try {
     const res = await fetch(url, {
