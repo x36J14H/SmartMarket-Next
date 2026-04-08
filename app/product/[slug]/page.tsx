@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ShoppingCart, Minus, Plus, ChevronRight, Star, MessageCircle, Share2, Heart, MapPin, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
+import { ImageSlider } from '../../../components/ImageSlider';
 import { useCartStore } from '../../../store/cartStore';
 import { useFavoritesStore } from '../../../store/favoritesStore';
 import { formatPrice } from '../../../lib/utils';
@@ -96,12 +97,9 @@ export default function ProductPage() {
     toast.success(isFavorite ? 'Удалено из избранного' : 'Добавлено в избранное');
   };
 
-  const handleDragEnd = (_: unknown, info: { offset: { x: number } }) => {
-    const threshold = 50;
-    if (info.offset.x < -threshold)
-      setActiveImage(mockColors[(currentIndex + 1) % mockColors.length]);
-    else if (info.offset.x > threshold)
-      setActiveImage(mockColors[(currentIndex - 1 + mockColors.length) % mockColors.length]);
+  const goTo = (idx: number) => {
+    const clamped = Math.max(0, Math.min(idx, mockColors.length - 1));
+    setActiveImage(mockColors[clamped]);
   };
 
   const { catSlug, subSlug, typeSlug } = {
@@ -144,25 +142,18 @@ export default function ProductPage() {
           <div className="hidden sm:flex flex-row sm:flex-col gap-2 w-full sm:w-14 lg:w-16 shrink-0 max-h-[600px] overflow-y-auto scrollbar-hide py-1">
             {mockColors.map((img, idx) => (
               <button key={idx} onClick={() => setActiveImage(img)} className={`relative aspect-[3/4] w-14 sm:w-full shrink-0 overflow-hidden rounded-xl border-2 transition-all ${activeImage === img ? 'border-emerald-500 shadow-md' : 'border-transparent hover:border-zinc-300 opacity-70 hover:opacity-100'} bg-white`}>
-                <img src={img} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                <img src={img} alt="" className="h-full w-full object-contain" referrerPolicy="no-referrer" />
               </button>
             ))}
           </div>
-          <div className="relative flex-1 bg-white rounded-3xl overflow-hidden aspect-[3/4] shadow-sm ring-1 ring-zinc-200/50 group touch-none">
-            <motion.img
-              key={activeImage}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              onDragEnd={handleDragEnd}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              src={activeImage}
+          <div className="relative flex-1 aspect-[3/4]">
+            <ImageSlider
+              images={mockColors}
+              activeIndex={currentIndex}
+              onIndexChange={goTo}
               alt={product.name}
-              className="h-full w-full object-cover cursor-grab active:cursor-grabbing"
-              referrerPolicy="no-referrer"
             />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 sm:hidden">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 sm:hidden pointer-events-none z-10">
               {mockColors.map((_, idx) => (
                 <div key={idx} className={`h-1.5 rounded-full transition-all duration-300 ${currentIndex === idx ? 'w-6 bg-emerald-500' : 'w-1.5 bg-zinc-300'}`} />
               ))}
