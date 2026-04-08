@@ -6,50 +6,55 @@ import Link from 'next/link';
 import { ShoppingCart, Minus, Plus, ChevronRight, Star, MessageCircle, Share2, Heart, MapPin, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
-import { useProductsStore } from '../../../store/productsStore';
-import type { Category } from '../../../store/productsStore';
 import { useCartStore } from '../../../store/cartStore';
 import { useFavoritesStore } from '../../../store/favoritesStore';
 import { formatPrice } from '../../../lib/utils';
 import { ProductCard } from '../../../components/ProductCard';
-import { fetchProductDetail } from '../../../lib/1c/catalog';
+import { fetchProductBySlug, fetchCatalog } from '../../../lib/1c/catalog';
 import { Product } from '../../../types';
 
 const FALLBACK_IMAGE = '/service/image-unavailable.png';
 
-function findSlugs(cats: Category[], catName: string, subName: string, typeName: string) {
-  const cat = cats.find((c) => c.name === catName);
-  const grp = cat?.groups.find((g) => g.name === subName);
-  const typ = grp?.items.find((i) => i.name === typeName);
-  return { catSlug: cat?.slug, subSlug: grp?.slug, typeSlug: typ?.slug };
-}
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
   const router = useRouter();
-  const products = useProductsStore((s) => s.products);
-  const categories = useProductsStore((s) => s.categories);
-  const baseProduct = products.find((p) => p.slug === slug);
 
-  const [detail, setDetail] = useState<Partial<Product> | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!baseProduct?.id) return;
-    fetchProductDetail(baseProduct.id)
-      .then(setDetail)
-      .catch(() => {});
-  }, [baseProduct?.id]);
+    if (!slug) return;
+    const controller = new AbortController();
 
-  const product: Product | undefined = baseProduct
-    ? { ...baseProduct, ...detail }
-    : undefined;
+    fetchProductBySlug(slug, controller.signal)
+      .then((p) => {
+        if (!p) { setNotFound(true); return; }
+        setProduct(p);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, [slug]);
+
+  // Загружаем похожие товары когда знаем категорию и категории загружены
+  useEffect(() => {
+    if (!product) return;
+    const controller = new AbortController();
+    const catSlug = product.categorySlug || product.category;
+    fetchCatalog({ category: catSlug, limit: 5 }, controller.signal)
+      .then(({ products }) => setSimilarProducts(products.filter((x) => x.id !== product.id).slice(0, 4)))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [product?.id]);
 
   const { addItem, updateQuantity, removeItem } = useCartStore();
   const cartItem = useCartStore((state) => state.items.find((item) => item.id === product?.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const isFavorite = useFavoritesStore((state) => state.favorites.includes(product?.id || ''));
 
-  const [activeImage, setActiveImage] = useState(product?.imageUrl || FALLBACK_IMAGE);
+  const [activeImage, setActiveImage] = useState(FALLBACK_IMAGE);
 
   useEffect(() => {
     const handleResize = () =>
@@ -66,7 +71,7 @@ export default function ProductPage() {
     if (product?.imageUrl) setActiveImage(product.imageUrl);
   }, [product?.imageUrl]);
 
-  if (!product) {
+  if (notFound) {
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[50vh] flex-col items-center justify-center">
         <h2 className="text-2xl font-bold text-zinc-900">Товар не найден</h2>
@@ -75,9 +80,13 @@ export default function ProductPage() {
     );
   }
 
-  const similarProducts = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
+  if (!product) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+      </div>
+    );
+  }
   const mockColors = product.images?.length > 0 ? product.images : [product.imageUrl || FALLBACK_IMAGE];
   const currentIndex = mockColors.indexOf(activeImage);
 
@@ -95,12 +104,11 @@ export default function ProductPage() {
       setActiveImage(mockColors[(currentIndex - 1 + mockColors.length) % mockColors.length]);
   };
 
-  const { catSlug, subSlug, typeSlug } = findSlugs(
-    categories,
-    product.category,
-    product.subcategory,
-    product.type
-  );
+  const { catSlug, subSlug, typeSlug } = {
+    catSlug: product.categorySlug,
+    subSlug: product.subcategorySlug,
+    typeSlug: product.typeSlug,
+  };
 
   return (
     <div className="mx-auto max-w-[1536px] px-2 py-2 sm:py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
@@ -201,7 +209,7 @@ export default function ProductPage() {
               {product.brand && (
                 <div className="flex py-2 border-b border-zinc-100">
                   <span className="w-1/2 text-zinc-500 font-medium pr-4">Бренд</span>
-                  <Link href={`/catalog?brand=${encodeURIComponent(product.brand)}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.brand}</Link>
+                  <Link href={`/catalog?brand=${product.brandSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.brand}</Link>
                 </div>
               )}
               {product.subcategory && (

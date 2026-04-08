@@ -3,9 +3,13 @@ export interface Product {
   slug: string;
   name: string;
   category: string;
+  categorySlug: string;
   subcategory: string;
+  subcategorySlug: string;
   type: string;
+  typeSlug: string;
   brand: string;
+  brandSlug: string;
   price: number;
   oldPrice?: number;
   description: string;

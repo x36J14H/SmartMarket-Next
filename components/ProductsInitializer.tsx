@@ -3,9 +3,9 @@
 import { useEffect } from 'react';
 import { useProductsStore } from '../store/productsStore';
 
-// Инициализирует загрузку товаров при старте приложения
+// Загружает категории и бренды для фильтров при старте приложения
 export function ProductsInitializer() {
-  const fetchProducts = useProductsStore((s) => s.fetchProducts);
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  const fetchFilters = useProductsStore((s) => s.fetchFilters);
+  useEffect(() => { fetchFilters(); }, [fetchFilters]);
   return null;
 }

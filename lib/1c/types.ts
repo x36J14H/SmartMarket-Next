@@ -7,10 +7,14 @@ export interface ApiProduct {
   slug: string;
   description: string;
   shortDescription: string;
-  category: string;       // ВидНоменклатуры.Родитель.Наименование
-  subcategory: string;    // ВидНоменклатуры.Наименование
+  category: string;
+  categorySlug: string;
+  subcategory: string;
+  subcategorySlug: string;
   type: string;
+  typeSlug: string;
   brand: string;
+  brandSlug: string;
   price: number;
   oldPrice?: number;
   imageUrl: string;
@@ -30,6 +34,18 @@ export interface ApiCategory {
 
 export interface ApiCatalogResponse {
   items: ApiProduct[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface CatalogParams {
+  category?: string;
+  brand?: string;
+  q?: string;
+  slug?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface ApiCategoriesResponse {

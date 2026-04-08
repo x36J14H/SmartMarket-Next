@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Sparkles, Loader2, X } from 'lucide-react';
+import { Search, Loader2, X } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { searchProductsWithAI } from '../services/aiSearch';
-import { Product } from '../types';
+import { searchProducts } from '../services/aiSearch';
+import type { Product } from '../types';
 import { formatPrice } from '../lib/utils';
-import { useProductsStore } from '../store/productsStore';
 
 interface AISearchBarProps {
   className?: string;
@@ -14,7 +13,6 @@ interface AISearchBarProps {
 }
 
 export function AISearchBar({ className = '', onResultClick }: AISearchBarProps) {
-  const products = useProductsStore((s) => s.products);
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
   const pathname = usePathname();
@@ -26,6 +24,7 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
   const [results, setResults] = useState<Product[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (isSearchPage) setQuery(urlQuery);
@@ -50,11 +49,18 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
           router.replace(`/search?q=${encodeURIComponent(query.trim())}`);
           setIsOpen(false);
         } else {
+          abortRef.current?.abort();
+          abortRef.current = new AbortController();
           setIsSearching(true);
           setIsOpen(true);
-          const searchResults = await searchProductsWithAI(query, products);
-          setResults(searchResults);
-          setIsSearching(false);
+          try {
+            const { products } = await searchProducts(query, 1, 5, abortRef.current.signal);
+            setResults(products);
+          } catch {
+            // aborted — ignore
+          } finally {
+            setIsSearching(false);
+          }
         }
       } else {
         setResults([]);
@@ -66,7 +72,7 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [query, isSearchPage, router, urlQuery, products]);
+  }, [query, isSearchPage, router, urlQuery]);
 
   const handleProductClick = (slug: string) => {
     setIsOpen(false);
@@ -88,7 +94,7 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
     <div ref={wrapperRef} className={`relative w-full max-w-md ${className}`}>
       <form onSubmit={handleSubmit} className="relative flex items-center">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <Sparkles className="h-4 w-4 text-emerald-500" />
+          <Search className="h-4 w-4 text-zinc-400" />
         </div>
         <input
           type="text"
@@ -96,7 +102,7 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { if (!isSearchPage && query.trim().length > 2) setIsOpen(true); }}
           className="block w-full rounded-2xl border border-zinc-200 bg-zinc-50/50 py-2.5 pl-10 pr-10 text-sm placeholder:text-zinc-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-          placeholder="AI поиск товаров..."
+          placeholder="Поиск товаров..."
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 gap-2">
           {query && (
@@ -115,11 +121,11 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
           {isSearching ? (
             <div className="flex items-center justify-center py-8 text-sm text-zinc-500 font-medium">
               <Loader2 className="mr-3 h-5 w-5 animate-spin text-emerald-500" />
-              ИИ ищет подходящие товары...
+              Ищем товары...
             </div>
           ) : results.length > 0 ? (
             <ul className="divide-y divide-zinc-100">
-              {results.slice(0, 5).map((product) => (
+              {results.map((product) => (
                 <li key={product.id}>
                   <button onClick={() => handleProductClick(product.slug)} className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-zinc-50">
                     <img src={product.imageUrl} alt={product.name} className="h-12 w-12 rounded-xl object-cover" referrerPolicy="no-referrer" />

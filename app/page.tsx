@@ -3,12 +3,23 @@
 import Link from 'next/link';
 import { ArrowRight, ShoppingBag, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useEffect, useState } from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { useProductsStore } from '../store/productsStore';
+import { fetchCatalog } from '../lib/1c/catalog';
+import type { Product } from '../types';
 
 export default function HomePage() {
-  const { products, categories, loading } = useProductsStore();
-  const popularProducts = products.slice(0, 8);
+  const { categories } = useProductsStore();
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCatalog({ page: 1, limit: 8 })
+      .then(({ products }) => setPopularProducts(products))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="flex flex-col gap-24 pb-24">

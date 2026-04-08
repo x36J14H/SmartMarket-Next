@@ -1,5 +1,5 @@
 import { onecClient } from './client';
-import type { ApiCatalogResponse, ApiCategoriesResponse, ApiProduct } from './types';
+import type { ApiCatalogResponse, ApiCategoriesResponse, ApiProduct, CatalogParams } from './types';
 import type { Product } from '../../types';
 import type { Category } from '../../store/productsStore';
 
@@ -17,9 +17,13 @@ export function mapApiProduct(item: ApiProduct): Product {
     slug: item.slug || item.article || item.id,
     name: item.name,
     category: item.category || '',
+    categorySlug: item.categorySlug || '',
     subcategory: item.subcategory || '',
+    subcategorySlug: item.subcategorySlug || '',
     type: item.type || '',
+    typeSlug: item.typeSlug || '',
     brand: item.brand || '',
+    brandSlug: item.brandSlug || '',
     price: item.price ?? 0,
     oldPrice: item.oldPrice,
     description: item.description || '',
@@ -50,33 +54,61 @@ export function mapApiCategories(apiCategories: ApiCategoriesResponse['categorie
     }));
 }
 
-export async function fetchCatalog(signal?: AbortSignal) {
+export async function fetchCatalog(params: CatalogParams = {}, signal?: AbortSignal) {
+  const qs = new URLSearchParams();
+  if (params.category) qs.set('category', params.category);
+  if (params.brand) qs.set('brand', params.brand);
+  if (params.q) qs.set('q', params.q);
+  if (params.slug) qs.set('slug', params.slug);
+  if (params.page) qs.set('page', String(params.page));
+  if (params.limit) qs.set('limit', String(params.limit));
+
+  const path = qs.toString() ? `catalog?${qs.toString()}` : 'catalog';
+
   const [catalogRes, categoriesRes] = await Promise.all([
-    onecClient.get<ApiCatalogResponse>('catalog', signal),
+    onecClient.get<ApiCatalogResponse>(path, signal),
     onecClient.get<ApiCategoriesResponse>('categories', signal),
   ]);
 
   const products = catalogRes.items.map(mapApiProduct);
-  const brands = [...new Set(products.map((p) => p.brand).filter(Boolean))] as string[];
   const categories = mapApiCategories(categoriesRes.categories);
 
-  return { products, brands, categories };
-}
-
-export async function fetchProductDetail(id: string, signal?: AbortSignal): Promise<Partial<Product>> {
-  const item = await onecClient.get<ApiProduct>(`catalog/${id}`, signal);
-  const mainImage = imageUrl(item.id, item.imageUrl);
   return {
-    type: item.type || '',
-    brand: item.brand || '',
-    subcategory: item.subcategory || '',
-    description: item.description || '',
-    shortDescription: item.shortDescription || item.description || '',
-    ...(item.imageUrl ? { imageUrl: mainImage } : {}),
-    ...(item.images?.length ? { images: item.images.map((fid) => imageUrl(item.id, fid)) } : {}),
-    characteristics: {
-      ...(item.article ? { Артикул: item.article } : {}),
-      ...(item.characteristics || {}),
-    },
+    products,
+    categories,
+    total: catalogRes.total,
+    page: catalogRes.page,
+    limit: catalogRes.limit,
   };
 }
+
+// Список брендов из GET /brands
+export async function fetchBrands(signal?: AbortSignal): Promise<{ name: string; slug: string }[]> {
+  try {
+    return await onecClient.get<{ name: string; slug: string }[]>('brands', signal);
+  } catch {
+    return [];
+  }
+}
+
+// Находит товар по slug через ?slug= затем грузит полную карточку по id
+export async function fetchProductBySlug(slug: string, signal?: AbortSignal): Promise<Product | null> {
+  const qs = new URLSearchParams({ slug, limit: '1' });
+  const res = await onecClient.get<ApiCatalogResponse>(`catalog?${qs.toString()}`, signal);
+  const item = res.items?.[0];
+  if (!item) return null;
+  // Грузим полную карточку (с images[] и characteristics)
+  return fetchProductById(item.id, signal);
+}
+
+// Загружает полную карточку товара по id (GUID)
+export async function fetchProductById(id: string, signal?: AbortSignal): Promise<Product | null> {
+  try {
+    const item = await onecClient.get<ApiProduct>(`catalog/${id}`, signal);
+    if (!item?.id) return null;
+    return mapApiProduct(item);
+  } catch {
+    return null;
+  }
+}
+

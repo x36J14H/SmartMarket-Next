@@ -7,7 +7,7 @@ const PASSWORD = process.env.ONEC_PASSWORD ?? '';
 const AUTH_HEADER = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
 
 // Разрешённые префиксы путей — защита от SSRF
-const ALLOWED_PREFIXES = ['catalog', 'categories'];
+const ALLOWED_PREFIXES = ['catalog', 'categories', 'brands'];
 
 export async function GET(
   req: NextRequest,
@@ -20,10 +20,12 @@ export async function GET(
     return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
   }
 
-  const url = `${BASE_URL}/${joined}`;
+  const url = new URL(`${BASE_URL}/${joined}`);
+  // Прокидываем все query-параметры (page, limit, category, brand, q и т.д.)
+  req.nextUrl.searchParams.forEach((value, key) => url.searchParams.set(key, value));
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(url.toString(), {
       headers: { Authorization: AUTH_HEADER },
       signal: AbortSignal.timeout(15000),
     });

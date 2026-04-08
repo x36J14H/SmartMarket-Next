@@ -1,10 +1,11 @@
-import { Product } from '../types';
+import { fetchCatalog } from '../lib/1c/catalog';
+import type { Product } from '../types';
 
 // Ограничиваем кэш — не более 50 запросов
 const MAX_CACHE_SIZE = 50;
-const searchResultCache = new Map<string, Product[]>();
+const searchResultCache = new Map<string, { products: Product[]; total: number }>();
 
-function addToCache(key: string, value: Product[]) {
+function addToCache(key: string, value: { products: Product[]; total: number }) {
   if (searchResultCache.size >= MAX_CACHE_SIZE) {
     const firstKey = searchResultCache.keys().next().value;
     if (firstKey) searchResultCache.delete(firstKey);
@@ -12,42 +13,25 @@ function addToCache(key: string, value: Product[]) {
   searchResultCache.set(key, value);
 }
 
-export function getCachedSearchResults(query: string): Product[] | null {
+export function getCachedSearchResults(query: string): { products: Product[]; total: number } | null {
   return searchResultCache.get(query.trim().toLowerCase()) ?? null;
 }
 
-export async function searchProductsWithAI(query: string, products: Product[]): Promise<Product[]> {
+export async function searchProducts(
+  query: string,
+  page = 1,
+  limit = 20,
+  signal?: AbortSignal
+): Promise<{ products: Product[]; total: number }> {
   const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) return [];
+  if (!normalizedQuery) return { products: [], total: 0 };
 
-  if (searchResultCache.has(normalizedQuery)) {
-    return searchResultCache.get(normalizedQuery)!;
-  }
+  const cacheKey = `${normalizedQuery}:${page}:${limit}`;
+  const cached = searchResultCache.get(cacheKey);
+  if (cached) return cached;
 
-  try {
-    // Передаём только минимальные поля, не весь объект
-    const simplified = products.map((p) => ({ id: p.id, name: p.name, category: p.category, brand: p.brand }));
-    const res = await fetch('/api/ai-search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: normalizedQuery, products: simplified }),
-    });
-
-    const { ids } = await res.json();
-    const matched = (ids as string[])
-      .map((id) => products.find((p) => p.id === id))
-      .filter((p): p is Product => p !== undefined);
-
-    addToCache(normalizedQuery, matched);
-    return matched;
-  } catch {
-    const fallback = products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(normalizedQuery) ||
-        p.category.toLowerCase().includes(normalizedQuery) ||
-        p.brand.toLowerCase().includes(normalizedQuery)
-    );
-    addToCache(normalizedQuery, fallback);
-    return fallback;
-  }
+  const result = await fetchCatalog({ q: normalizedQuery, page, limit }, signal);
+  const data = { products: result.products, total: result.total };
+  addToCache(cacheKey, data);
+  return data;
 }
