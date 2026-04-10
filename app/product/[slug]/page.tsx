@@ -118,19 +118,19 @@ export default function ProductPage() {
           {product.category && catSlug && (
             <>
               <ChevronRight size={14} className="text-zinc-400" />
-              <Link href={`/catalog?category=${catSlug}`} className="hover:text-emerald-600 transition-colors">{product.category}</Link>
+              <Link href={`/catalog/${catSlug}`} className="hover:text-emerald-600 transition-colors">{product.category}</Link>
             </>
           )}
           {product.subcategory && subSlug && (
             <>
               <ChevronRight size={14} className="text-zinc-400" />
-              <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}`} className="hover:text-emerald-600 transition-colors">{product.subcategory}</Link>
+              <Link href={`/catalog/${catSlug}/${subSlug}`} className="hover:text-emerald-600 transition-colors">{product.subcategory}</Link>
             </>
           )}
           {product.type && typeSlug && (
             <>
               <ChevronRight size={14} className="text-zinc-400" />
-              <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}&type=${typeSlug}`} className="hover:text-emerald-600 transition-colors">{product.type}</Link>
+              <Link href={`/catalog/${catSlug}/${subSlug}/${typeSlug}`} className="hover:text-emerald-600 transition-colors">{product.type}</Link>
             </>
           )}
         </nav>
@@ -200,14 +200,14 @@ export default function ProductPage() {
               {product.brand && (
                 <div className="flex py-2 border-b border-zinc-100">
                   <span className="w-1/2 text-zinc-500 font-medium pr-4">Бренд</span>
-                  <Link href={`/catalog?brand=${product.brandSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.brand}</Link>
+                  <Link href={`/catalog/${[catSlug, subSlug, typeSlug].filter(Boolean).join('/')}?brand=${product.brandSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.brand}</Link>
                 </div>
               )}
               {product.subcategory && (
                 <div className="flex py-2 border-b border-zinc-100">
                   <span className="w-1/2 text-zinc-500 font-medium pr-4">Категория</span>
                   {catSlug && subSlug
-                    ? <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.subcategory}</Link>
+                    ? <Link href={`/catalog/${catSlug}/${subSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.subcategory}</Link>
                     : <span className="w-1/2 text-zinc-900 font-medium">{product.subcategory}</span>
                   }
                 </div>
@@ -216,7 +216,7 @@ export default function ProductPage() {
                 <div className="flex py-2 border-b border-zinc-100">
                   <span className="w-1/2 text-zinc-500 font-medium pr-4">Тип</span>
                   {catSlug && subSlug && typeSlug
-                    ? <Link href={`/catalog?category=${catSlug}&subcategory=${subSlug}&type=${typeSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.type}</Link>
+                    ? <Link href={`/catalog/${catSlug}/${subSlug}/${typeSlug}`} className="w-1/2 text-emerald-600 font-medium hover:underline">{product.type}</Link>
                     : <span className="w-1/2 text-zinc-900 font-medium">{product.type}</span>
                   }
                 </div>
@@ -298,7 +298,7 @@ export default function ProductPage() {
         <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mt-10 sm:mt-20 mb-10">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-extrabold tracking-tight text-zinc-900">Похожие товары</h2>
-            <Link href={`/catalog?category=${encodeURIComponent(product.category)}`} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider">Смотреть все</Link>
+            <Link href={`/catalog/${product.categorySlug}`} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider">Смотреть все</Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {similarProducts.map((p) => <ProductCard key={p.id} product={p} aspectRatio="aspect-[6/5]" />)}
