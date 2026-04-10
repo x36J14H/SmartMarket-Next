@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Bot, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
-import { useProductsStore } from '../store/productsStore';
 
 type Message = { id: string; role: 'user' | 'model'; text: string };
 type HistoryEntry = { role: string; parts: { text: string }[] };
@@ -20,8 +19,6 @@ export function AIChatbot() {
   const [isLoading, setIsLoading] = useState(false);
   const historyRef = useRef<HistoryEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const products = useProductsStore((s) => s.products);
-
   useEffect(() => {
     const checkFloatingBar = () => setHasFloatingBar(document.documentElement.classList.contains('has-floating-bar'));
     const observer = new MutationObserver(checkFloatingBar);
@@ -50,10 +47,6 @@ export function AIChatbot() {
         body: JSON.stringify({
           message: userMessage.text,
           history: historyRef.current,
-          // Передаём только нужные поля, не весь объект
-          products: products.slice(0, 200).map((p) => ({
-            id: p.id, name: p.name, category: p.category, price: p.price, slug: p.slug,
-          })),
         }),
       });
       const data = await res.json();

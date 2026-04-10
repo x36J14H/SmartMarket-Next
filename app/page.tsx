@@ -86,7 +86,7 @@ export default function HomePage() {
             const isLarge = index === 0 || index === 3;
             return (
               <motion.div key={category.name} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, margin: '-100px' }} transition={{ duration: 0.5, delay: index * 0.1 }} className={isLarge ? 'md:col-span-2' : 'md:col-span-1'}>
-                <Link href={`/catalog?category=${encodeURIComponent(category.name)}`} className="group relative flex h-full flex-col items-start justify-between overflow-hidden rounded-3xl bg-zinc-100 p-8 transition-all hover:bg-emerald-50 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 border border-zinc-200/50">
+                <Link href={`/catalog/${category.slug}`} className="group relative flex h-full flex-col items-start justify-between overflow-hidden rounded-3xl bg-zinc-100 p-8 transition-all hover:bg-emerald-50 hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 border border-zinc-200/50">
                   <div className="rounded-2xl bg-white p-4 shadow-sm transition-transform duration-500 group-hover:scale-110 ring-1 ring-zinc-200/50">
                     <ShoppingBag className="h-8 w-8 text-zinc-700 group-hover:text-emerald-500 transition-colors" />
                   </div>

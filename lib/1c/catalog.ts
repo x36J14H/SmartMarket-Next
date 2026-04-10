@@ -57,7 +57,10 @@ export function mapApiCategories(apiCategories: ApiCategoriesResponse['categorie
 export async function fetchCatalog(params: CatalogParams = {}, signal?: AbortSignal) {
   const qs = new URLSearchParams();
   if (params.category) qs.set('category', params.category);
-  if (params.brand) qs.set('brand', params.brand);
+  if (params.brand) {
+    const brands = Array.isArray(params.brand) ? params.brand : [params.brand];
+    qs.set('brand', brands.join(','));
+  }
   if (params.q) qs.set('q', params.q);
   if (params.slug) qs.set('slug', params.slug);
   if (params.page) qs.set('page', String(params.page));

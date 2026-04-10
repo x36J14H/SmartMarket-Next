@@ -41,7 +41,7 @@ export interface ApiCatalogResponse {
 
 export interface CatalogParams {
   category?: string;
-  brand?: string;
+  brand?: string | string[];
   q?: string;
   slug?: string;
   page?: number;
