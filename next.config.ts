@@ -2,7 +2,8 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   images: {
-    minimumCacheTTL: 86400,
+    // fileId в 1С — неизменяемые UUID, кэшируем агрессивно
+    minimumCacheTTL: 2592000, // 30 дней
   },
   // Разрешаем доступ с локальной сети для тестирования на других устройствах
   allowedDevOrigins: [

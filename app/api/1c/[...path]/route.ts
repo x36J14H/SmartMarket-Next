@@ -38,7 +38,8 @@ export async function GET(
         status: res.status,
         headers: {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400',
+          // fileId — неизменяемый UUID, кэшируем на 30 дней
+          'Cache-Control': 'public, max-age=2592000, immutable',
         },
       });
     }

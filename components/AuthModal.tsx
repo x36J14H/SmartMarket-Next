@@ -6,6 +6,8 @@ import { X, Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-re
 import { motion, AnimatePresence } from 'motion/react';
 import { authService } from '../lib/1c/auth';
 import { useAuthStore } from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
+import { useFavoritesStore } from '../store/favoritesStore';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import { checkPasswordStrength } from '../lib/passwordStrength';
 
@@ -27,8 +29,17 @@ export function AuthModal({ onClose }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setUser } = useAuthStore();
+  const syncCart = useCartStore((s) => s.syncWithServer);
+  const syncFavorites = useFavoritesStore((s) => s.syncWithServer);
 
   const clearError = () => setError('');
+
+  const afterLogin = async (profile: Awaited<ReturnType<typeof authService.getProfile>>) => {
+    setUser(profile);
+    syncCart();
+    syncFavorites();
+    onClose();
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +48,7 @@ export function AuthModal({ onClose }: Props) {
     try {
       await authService.login(email, password);
       const profile = await authService.getProfile();
-      setUser(profile);
-      onClose();
+      await afterLogin(profile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка входа');
     } finally {
@@ -71,8 +81,7 @@ export function AuthModal({ onClose }: Props) {
     try {
       await authService.confirmEmail(email, code);
       const profile = await authService.getProfile();
-      setUser(profile);
-      onClose();
+      await afterLogin(profile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неверный код');
     } finally {
@@ -105,8 +114,7 @@ export function AuthModal({ onClose }: Props) {
     try {
       await authService.resetPassword(email, code, newPassword);
       const profile = await authService.getProfile();
-      setUser(profile);
-      onClose();
+      await afterLogin(profile);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка сброса пароля');
     } finally {
