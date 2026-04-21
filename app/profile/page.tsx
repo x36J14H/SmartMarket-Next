@@ -1,14 +1,34 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Settings, Package, Bell, Shield, LogOut, ChevronRight, Clock, CheckCircle2, Truck, ArrowLeft } from 'lucide-react';
+import { User, Settings, Package, Bell, Shield, LogOut, ChevronRight, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
 import { formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAuthStore } from '../../store/authStore';
+import { useRouter } from 'next/navigation';
+import { authService } from '../../lib/1c/auth';
+import { PasswordStrengthMeter } from '../../components/PasswordStrengthMeter';
+import { checkPasswordStrength } from '../../lib/passwordStrength';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const { user, logout } = useAuthStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Редирект если не авторизован (после загрузки стора)
+    if (user === null) {
+      // Небольшая задержка чтобы AuthProvider успел загрузиться
+      const timer = setTimeout(() => {
+        if (!useAuthStore.getState().isLoading && !useAuthStore.getState().user) {
+          router.push('/');
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, router]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -47,15 +67,15 @@ export default function ProfilePage() {
           <div className="space-y-6 sm:space-y-8">
             <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">Личные данные</h2>
             <div className="grid grid-cols-1 gap-4 sm:gap-8 sm:grid-cols-2">
-              {[{ label: 'Имя', type: 'text', value: 'Иван Иванов' }, { label: 'Email', type: 'email', value: 'ivan@example.com' }, { label: 'Телефон', type: 'tel', value: '+7 (999) 123-45-67' }].map(({ label, type, value }) => (
+              {[
+                { label: 'Имя', type: 'text', value: user?.name ?? '' },
+                { label: 'Email', type: 'email', value: user?.email ?? '' },
+              ].map(({ label, type, value }) => (
                 <div key={label}>
                   <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-bold text-zinc-900">{label}</label>
-                  <input type={type} defaultValue={value} className="w-full rounded-2xl border-zinc-200 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-zinc-50 font-medium transition-all border" />
+                  <input type={type} defaultValue={value} readOnly className="w-full rounded-2xl border-zinc-200 px-4 py-3 text-sm outline-none bg-zinc-50 font-medium border text-zinc-700" />
                 </div>
               ))}
-            </div>
-            <div className="pt-2 sm:pt-4">
-              <button className="w-full sm:w-auto rounded-2xl bg-emerald-600 px-8 py-3.5 sm:py-4 text-sm sm:text-base font-bold text-white shadow-md transition-all hover:bg-emerald-500 hover:-translate-y-0.5">Сохранить изменения</button>
             </div>
           </div>
         );
@@ -112,31 +132,7 @@ export default function ProfilePage() {
           </div>
         );
       case 'settings':
-        return (
-          <div className="space-y-8 sm:space-y-10">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">Настройки сайта</h2>
-            <div className="space-y-6">
-              <h3 className="flex items-center gap-3 text-base sm:text-lg font-bold text-zinc-900">
-                <div className="p-2 bg-zinc-100 rounded-xl"><Bell size={18} className="text-zinc-600" /></div>Уведомления
-              </h3>
-              {[{ label: 'Email рассылки', desc: 'Получать новости об акциях и скидках' }, { label: 'SMS уведомления', desc: 'Статусы заказов по SMS' }].map(({ label, desc }) => (
-                <div key={label} className="flex items-center justify-between border-b border-zinc-100 pb-6">
-                  <div className="pr-4"><p className="font-bold text-zinc-900 text-sm sm:text-base">{label}</p><p className="text-xs sm:text-sm font-medium text-zinc-500 mt-1">{desc}</p></div>
-                  <label className="relative inline-flex cursor-pointer items-center shrink-0">
-                    <input type="checkbox" className="peer sr-only" defaultChecked />
-                    <div className="peer h-6 w-11 rounded-full bg-zinc-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-5 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/30 shadow-inner"></div>
-                  </label>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-6 pt-2">
-              <h3 className="flex items-center gap-3 text-base sm:text-lg font-bold text-zinc-900">
-                <div className="p-2 bg-zinc-100 rounded-xl"><Shield size={18} className="text-zinc-600" /></div>Безопасность
-              </h3>
-              <button className="text-sm font-bold text-emerald-600 hover:text-emerald-500 transition-colors">Изменить пароль</button>
-            </div>
-          </div>
-        );
+        return <SettingsTab />;
       default: return null;
     }
   };
@@ -172,7 +168,10 @@ export default function ProfilePage() {
                     </button>
                   ))}
                   <div className="h-px bg-zinc-100 my-2 mx-4"></div>
-                  <button className="flex items-center justify-between rounded-2xl px-4 py-4 text-sm font-bold text-rose-600 transition-all hover:bg-rose-50">
+                  <button
+                    onClick={async () => { await logout(); router.push('/'); }}
+                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-sm font-bold text-rose-600 transition-all hover:bg-rose-50"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-rose-50 rounded-xl"><LogOut size={18} className="text-rose-500" /></div>
                       Выйти
@@ -192,6 +191,165 @@ export default function ProfilePage() {
           )}
         </AnimatePresence>
       </div>
+    </div>
+  );
+}
+
+function SettingsTab() {
+  const [showForm, setShowForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkPasswordStrength(newPassword).isValid) {
+      setError('Новый пароль не соответствует требованиям безопасности');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      setSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setShowForm(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка смены пароля');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 sm:space-y-10">
+      <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">Настройки</h2>
+
+      <div className="space-y-6">
+        <h3 className="flex items-center gap-3 text-base sm:text-lg font-bold text-zinc-900">
+          <div className="p-2 bg-zinc-100 rounded-xl"><Bell size={18} className="text-zinc-600" /></div>
+          Уведомления
+        </h3>
+        {[
+          { label: 'Email рассылки', desc: 'Получать новости об акциях и скидках' },
+          { label: 'SMS уведомления', desc: 'Статусы заказов по SMS' },
+        ].map(({ label, desc }) => (
+          <div key={label} className="flex items-center justify-between border-b border-zinc-100 pb-6">
+            <div className="pr-4">
+              <p className="font-bold text-zinc-900 text-sm sm:text-base">{label}</p>
+              <p className="text-xs sm:text-sm font-medium text-zinc-500 mt-1">{desc}</p>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center shrink-0">
+              <input type="checkbox" className="peer sr-only" defaultChecked />
+              <div className="peer h-6 w-11 rounded-full bg-zinc-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-emerald-500 peer-checked:after:translate-x-5 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/30 shadow-inner" />
+            </label>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-5 pt-2">
+        <h3 className="flex items-center gap-3 text-base sm:text-lg font-bold text-zinc-900">
+          <div className="p-2 bg-zinc-100 rounded-xl"><Shield size={18} className="text-zinc-600" /></div>
+          Безопасность
+        </h3>
+
+        {success && !showForm && (
+          <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700">
+            Пароль успешно изменён
+          </p>
+        )}
+
+        {!showForm ? (
+          <button
+            onClick={() => { setShowForm(true); setSuccess(false); }}
+            className="text-sm font-bold text-emerald-600 hover:text-emerald-500 transition-colors"
+          >
+            Изменить пароль
+          </button>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+            <PasswordField
+              label="Текущий пароль"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              show={showCurrent}
+              onToggle={() => setShowCurrent((v) => !v)}
+            />
+            <PasswordField
+              label="Новый пароль"
+              value={newPassword}
+              onChange={setNewPassword}
+              show={showNew}
+              onToggle={() => setShowNew((v) => !v)}
+              minLength={8}
+              hint="Минимум 8 символов, заглавная буква, цифра, спецсимвол"
+            />
+            <PasswordStrengthMeter password={newPassword} />
+            {error && (
+              <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-600">{error}</p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-2xl bg-zinc-900 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-zinc-700 disabled:opacity-60"
+              >
+                {loading && <Loader2 size={14} className="animate-spin" />}
+                Сохранить
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setError(''); setCurrentPassword(''); setNewPassword(''); }}
+                className="rounded-2xl px-6 py-3 text-sm font-bold text-zinc-500 hover:bg-zinc-100 transition-colors"
+              >
+                Отмена
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PasswordField({
+  label, value, onChange, show, onToggle, minLength, hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  minLength?: number;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-bold text-zinc-900">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/\s/g, ''))}
+          required
+          minLength={minLength}
+          className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-3 pl-4 pr-10 text-sm font-medium text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {hint && <p className="mt-1 text-xs text-zinc-400">{hint}</p>}
     </div>
   );
 }

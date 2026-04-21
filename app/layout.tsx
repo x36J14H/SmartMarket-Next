@@ -5,6 +5,7 @@ import { Footer } from '../components/Footer';
 import { Toaster } from 'react-hot-toast';
 import { AIChatbot } from '../components/AIChatbot';
 import { ProductsInitializer } from '../components/ProductsInitializer';
+import { AuthProvider } from '../components/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'MarketMVP',
@@ -15,14 +16,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru">
       <body>
-        <ProductsInitializer />
-        <div className="flex min-h-screen flex-col bg-white text-gray-900">
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <Toaster position="bottom-right" />
-          <AIChatbot />
-        </div>
+        <AuthProvider>
+          <ProductsInitializer />
+          <div className="flex min-h-screen flex-col bg-white text-gray-900">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <Toaster position="bottom-right" />
+            <AIChatbot />
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );
