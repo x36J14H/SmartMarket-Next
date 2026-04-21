@@ -3,30 +3,22 @@
 import { CheckCircle2, Circle } from 'lucide-react';
 import { checkPasswordStrength, PASSWORD_RULES } from '../lib/passwordStrength';
 
-// Tailwind требует полные имена классов — не генерировать динамически
-const SEGMENT_COLORS: Record<number, string> = {
-  1: 'bg-rose-500',
-  2: 'bg-amber-400',
-  3: 'bg-amber-400',
-  4: 'bg-yellow-400',
-  5: 'bg-emerald-500',
-};
+// 3 степени: слабый (красный), средний (жёлтый), надёжный (зелёный)
+// score 0–5 (кол-во пройденных правил из 5)
+// слабый:   1–2 правила  → 1 сегмент красный
+// средний:  3–4 правила  → 2 сегмента жёлтых
+// надёжный: 5 правил     → 3 сегмента зелёных
 
-const STRENGTH_LABELS: Record<number, string> = {
-  1: 'Очень слабый',
-  2: 'Слабый',
-  3: 'Средний',
-  4: 'Хороший',
-  5: 'Надёжный',
-};
+function getLevel(score: number): 0 | 1 | 2 | 3 {
+  if (score === 0) return 0;
+  if (score <= 2) return 1; // слабый
+  if (score <= 4) return 2; // средний
+  return 3;                 // надёжный
+}
 
-const STRENGTH_TEXT: Record<number, string> = {
-  1: 'text-rose-500',
-  2: 'text-amber-500',
-  3: 'text-amber-500',
-  4: 'text-yellow-500',
-  5: 'text-emerald-600',
-};
+const LEVEL_COLOR = ['', 'bg-rose-500', 'bg-amber-400', 'bg-emerald-500'] as const;
+const LEVEL_LABEL = ['', 'Слабый', 'Средний', 'Надёжный'] as const;
+const LEVEL_TEXT  = ['', 'text-rose-500', 'text-amber-500', 'text-emerald-600'] as const;
 
 interface Props {
   password: string;
@@ -36,26 +28,26 @@ export function PasswordStrengthMeter({ password }: Props) {
   if (!password) return null;
 
   const { score, passed } = checkPasswordStrength(password);
-  const segmentColor = SEGMENT_COLORS[score] ?? 'bg-zinc-200';
+  const level = getLevel(score);
 
   return (
     <div className="space-y-2.5">
-      {/* Полоска — 5 сегментов */}
+      {/* Полоска — 3 сегмента */}
       <div className="flex gap-1">
-        {PASSWORD_RULES.map((_, i) => (
+        {[1, 2, 3].map((seg) => (
           <div
-            key={i}
+            key={seg}
             className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-              i < score ? segmentColor : 'bg-zinc-200'
+              seg <= level ? LEVEL_COLOR[level] : 'bg-zinc-200'
             }`}
           />
         ))}
       </div>
 
       {/* Подпись */}
-      {score > 0 && (
-        <p className={`text-xs font-bold ${STRENGTH_TEXT[score]}`}>
-          {STRENGTH_LABELS[score]}
+      {level > 0 && (
+        <p className={`text-xs font-bold ${LEVEL_TEXT[level]}`}>
+          {LEVEL_LABEL[level]}
         </p>
       )}
 
