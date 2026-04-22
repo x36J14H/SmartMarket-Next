@@ -10,6 +10,7 @@ interface CartState {
   removeItem: (productId: string) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  mergeToServer: () => Promise<void>;
   syncWithServer: () => Promise<void>;
   reset: () => void;
   getTotalPrice: () => number;
@@ -23,7 +24,6 @@ export const useCartStore = create<CartState>()(
       synced: false,
 
       addItem: async (product, quantity = 1) => {
-        // Оптимистичное обновление
         set((state) => {
           const existing = state.items.find((i) => i.id === product.id);
           if (existing) {
@@ -40,7 +40,6 @@ export const useCartStore = create<CartState>()(
           await personalService.addToCart(product.id, quantity);
         } catch (e) {
           if (e instanceof Error && e.message === 'unauthorized') return;
-          // Откат
           set((state) => {
             const existing = state.items.find((i) => i.id === product.id);
             if (!existing) return state;
@@ -102,10 +101,20 @@ export const useCartStore = create<CartState>()(
         }
       },
 
+      // Заливает локальные (гостевые) товары в аккаунт после логина.
+      // POST /cart/{id} на стороне 1С увеличивает qty если товар уже есть — дублей не будет.
+      mergeToServer: async () => {
+        const localItems = get().items;
+        if (localItems.length === 0) return;
+
+        await Promise.allSettled(
+          localItems.map((item) => personalService.addToCart(item.id, item.quantity))
+        );
+      },
+
       syncWithServer: async () => {
         try {
           const serverItems = await personalService.getCart();
-          // Маппим серверные данные в локальный формат CartItem
           set({
             items: serverItems.map((i) => ({
               id: i.id,
@@ -117,7 +126,6 @@ export const useCartStore = create<CartState>()(
                 ? `/api/1c/catalog/${i.id}/images/${i.imageUrl}`
                 : '/service/image-unavailable.png',
               quantity: i.qty,
-              // Поля которых нет в API корзины — заполняем пустышками
               category: '',
               categorySlug: '',
               subcategory: '',

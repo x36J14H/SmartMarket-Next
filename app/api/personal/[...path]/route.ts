@@ -11,7 +11,7 @@ const USERNAME = process.env.ONEC_USERNAME ?? 'Администратор';
 const PASSWORD = process.env.ONEC_PASSWORD ?? '';
 const BASIC_AUTH = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
 
-const ALLOWED_PREFIXES = ['wishlist', 'cart'];
+const ALLOWED_PREFIXES = ['wishlist', 'cart', 'profile'];
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -48,6 +48,7 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
       method: req.method,
       headers,
       body,
+      credentials: 'omit',
       signal: AbortSignal.timeout(10000),
     });
 

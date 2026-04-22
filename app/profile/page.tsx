@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Settings, Package, Bell, Shield, LogOut, ChevronRight, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react';
+import { User, Settings, Package, Bell, Shield, LogOut, ChevronRight, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, Eye, EyeOff, Phone, MapPin, Save } from 'lucide-react';
 import { formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'next/navigation';
 import { authService } from '../../lib/1c/auth';
+import { personalService } from '../../lib/1c/personal';
 import { PasswordStrengthMeter } from '../../components/PasswordStrengthMeter';
 import { checkPasswordStrength } from '../../lib/passwordStrength';
+import { FormActions } from '../../components/FormActions';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -63,22 +65,7 @@ export default function ProfilePage() {
   const renderContent = () => {
     switch (activeTab) {
       case 'personal':
-        return (
-          <div className="space-y-6 sm:space-y-8">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">Личные данные</h2>
-            <div className="grid grid-cols-1 gap-4 sm:gap-8 sm:grid-cols-2">
-              {[
-                { label: 'Имя', type: 'text', value: user?.name ?? '' },
-                { label: 'Email', type: 'email', value: user?.email ?? '' },
-              ].map(({ label, type, value }) => (
-                <div key={label}>
-                  <label className="mb-1.5 sm:mb-2 block text-xs sm:text-sm font-bold text-zinc-900">{label}</label>
-                  <input type={type} defaultValue={value} readOnly className="w-full rounded-2xl border-zinc-200 px-4 py-3 text-sm outline-none bg-zinc-50 font-medium border text-zinc-700" />
-                </div>
-              ))}
-            </div>
-          </div>
-        );
+        return <PersonalTab />;
       case 'orders':
         return (
           <div>
@@ -195,6 +182,127 @@ export default function ProfilePage() {
   );
 }
 
+function PersonalTab() {
+  const { user, setUser } = useAuthStore();
+  const [name, setName] = useState(user?.name ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [address, setAddress] = useState(user?.delivery_address ?? '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  // Заполняем поля когда user загружается из AuthProvider
+  useEffect(() => {
+    if (user) {
+      setName(user.name ?? '');
+      setPhone(user.phone ?? '');
+      setAddress(user.delivery_address ?? '');
+    }
+  }, [user]);
+
+  const isDirty =
+    name !== (user?.name ?? '') ||
+    phone !== (user?.phone ?? '') ||
+    address !== (user?.delivery_address ?? '');
+
+  const handleReset = () => {
+    setName(user?.name ?? '');
+    setPhone(user?.phone ?? '');
+    setAddress(user?.delivery_address ?? '');
+    setError('');
+    setSuccess(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+
+    const patch: Record<string, string> = {};
+    if (name !== (user?.name ?? '')) patch.name = name;
+    if (phone !== (user?.phone ?? '')) patch.phone = phone;
+    if (address !== (user?.delivery_address ?? '')) patch.delivery_address = address;
+
+    try {
+      await personalService.updateProfile(patch);
+      setUser({ ...user!, ...patch, delivery_address: patch.delivery_address ?? user?.delivery_address });
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка сохранения');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">Личные данные</h2>
+      <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
+        <div>
+          <label className="mb-1.5 block text-xs font-bold text-zinc-900">Имя</label>
+          <div className="relative">
+            <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setSuccess(false); }}
+              className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-3 pl-10 pr-4 text-sm font-medium text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-bold text-zinc-900">Email</label>
+          <input
+            type="email"
+            value={user?.email ?? ''}
+            readOnly
+            className="w-full rounded-2xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-medium text-zinc-400 outline-none cursor-not-allowed"
+          />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-bold text-zinc-900">Телефон</label>
+          <div className="relative">
+            <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value); setSuccess(false); }}
+              placeholder="+7 (900) 000-00-00"
+              className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-3 pl-10 pr-4 text-sm font-medium text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-zinc-300"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-bold text-zinc-900">Адрес доставки</label>
+          <div className="relative">
+            <MapPin size={16} className="absolute left-4 top-3.5 text-zinc-400" />
+            <textarea
+              value={address}
+              onChange={(e) => { setAddress(e.target.value); setSuccess(false); }}
+              rows={2}
+              placeholder="г. Москва, ул. Ленина, д. 1, кв. 10"
+              className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-3 pl-10 pr-4 text-sm font-medium text-zinc-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none placeholder:text-zinc-300"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-600">{error}</p>
+        )}
+        {success && (
+          <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700">Данные сохранены</p>
+        )}
+
+        {isDirty && <FormActions loading={loading} onCancel={handleReset} />}
+      </form>
+    </div>
+  );
+}
+
 function SettingsTab() {
   const [showForm, setShowForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -294,23 +402,10 @@ function SettingsTab() {
             {error && (
               <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-600">{error}</p>
             )}
-            <div className="flex gap-3 pt-1">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex items-center gap-2 rounded-2xl bg-zinc-900 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-zinc-700 disabled:opacity-60"
-              >
-                {loading && <Loader2 size={14} className="animate-spin" />}
-                Сохранить
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setError(''); setCurrentPassword(''); setNewPassword(''); }}
-                className="rounded-2xl px-6 py-3 text-sm font-bold text-zinc-500 hover:bg-zinc-100 transition-colors"
-              >
-                Отмена
-              </button>
-            </div>
+            <FormActions
+              loading={loading}
+              onCancel={() => { setShowForm(false); setError(''); setCurrentPassword(''); setNewPassword(''); }}
+            />
           </form>
         )}
       </div>

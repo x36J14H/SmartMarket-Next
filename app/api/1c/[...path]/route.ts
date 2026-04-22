@@ -27,6 +27,7 @@ export async function GET(
   try {
     const res = await fetch(url.toString(), {
       headers: { Authorization: AUTH_HEADER },
+      credentials: 'omit',
       signal: AbortSignal.timeout(15000),
     });
 

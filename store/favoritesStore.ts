@@ -10,6 +10,7 @@ interface FavoritesState {
   synced: boolean; // загружены ли данные с сервера
   toggleFavorite: (productId: string) => Promise<void>;
   isFavorite: (productId: string) => boolean;
+  mergeToServer: () => Promise<void>;
   syncWithServer: () => Promise<void>;
   clearInvalid: () => void;
   reset: () => void;
@@ -49,6 +50,17 @@ export const useFavoritesStore = create<FavoritesState>()(
       },
 
       isFavorite: (productId) => get().favorites.includes(productId),
+
+      // Заливает локальные (гостевые) избранные в аккаунт после логина.
+      // addToWishlist идемпотентен — если уже есть, ничего не происходит.
+      mergeToServer: async () => {
+        const localFavorites = get().favorites;
+        if (localFavorites.length === 0) return;
+
+        await Promise.allSettled(
+          localFavorites.map((id) => personalService.addToWishlist(id))
+        );
+      },
 
       syncWithServer: async () => {
         try {

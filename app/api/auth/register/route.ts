@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: BASIC_AUTH },
       body: JSON.stringify(body),
+      credentials: 'omit',
       signal: AbortSignal.timeout(10000),
     });
   } catch (e) {

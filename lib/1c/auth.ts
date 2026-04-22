@@ -10,6 +10,15 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  delivery_address?: string;
+  registered_at?: string;
+}
+
+export interface UpdateProfileData {
+  name?: string;
+  phone?: string;
+  delivery_address?: string;
 }
 
 const BASE = '/api/auth';

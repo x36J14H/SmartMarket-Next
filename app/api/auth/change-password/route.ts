@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         'X-Auth-Token': token,
       },
       body: JSON.stringify(body),
+      credentials: 'omit',
       signal: AbortSignal.timeout(10000),
     });
   } catch (e) {

@@ -29,12 +29,16 @@ export function AuthModal({ onClose }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { setUser } = useAuthStore();
+  const mergeCart = useCartStore((s) => s.mergeToServer);
   const syncCart = useCartStore((s) => s.syncWithServer);
+  const mergeFavorites = useFavoritesStore((s) => s.mergeToServer);
   const syncFavorites = useFavoritesStore((s) => s.syncWithServer);
 
   const clearError = () => setError('');
 
   const afterLogin = async (profile: Awaited<ReturnType<typeof authService.getProfile>>) => {
+    // Сначала заливаем гостевые данные в аккаунт, потом тянем актуальное состояние
+    await Promise.allSettled([mergeCart(), mergeFavorites()]);
     setUser(profile);
     syncCart();
     syncFavorites();

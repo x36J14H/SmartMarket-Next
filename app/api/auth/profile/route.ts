@@ -11,10 +11,25 @@ export async function GET(req: NextRequest) {
 
   const res = await fetch(`${AUTH_URL}/profile`, {
     headers: { Authorization: BASIC_AUTH, 'X-Auth-Token': token },
+    credentials: 'omit',
     signal: AbortSignal.timeout(10000),
   });
 
   const text = await res.text();
   const data = text.trim() ? JSON.parse(text) : {};
-  return NextResponse.json(data, { status: res.status });
+
+  const response = NextResponse.json(data, { status: res.status });
+
+  // Продлеваем куку на 30 дней при каждом успешном запросе (плавающая сессия)
+  if (res.ok) {
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+    });
+  }
+
+  return response;
 }

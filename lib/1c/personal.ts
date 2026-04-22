@@ -1,4 +1,4 @@
-// Сервисный слой для Personal API 1С (корзина и избранное)
+import { UpdateProfileData } from './auth';
 // Все запросы идут через прокси /api/personal/*
 
 export interface WishlistItem {
@@ -39,6 +39,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const personalService = {
+  // Профиль
+  updateProfile: (data: UpdateProfileData) =>
+    request<{ ok: true }>('/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+
   // Избранное
   getWishlist: () => request<WishlistItem[]>('/wishlist'),
   addToWishlist: (id: string) => request<{ ok: true }>(`/wishlist/${id}`, { method: 'POST' }),
