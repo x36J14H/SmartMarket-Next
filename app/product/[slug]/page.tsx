@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ShoppingCart, Minus, Plus, ChevronRight, Star, MessageCircle, Share2, Heart, MapPin, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
@@ -142,7 +143,7 @@ export default function ProductPage() {
           <div className="hidden sm:flex flex-row sm:flex-col gap-2 w-full sm:w-14 lg:w-16 shrink-0 max-h-[600px] overflow-y-auto scrollbar-hide py-1">
             {mockColors.map((img, idx) => (
               <button key={idx} onClick={() => setActiveImage(img)} className={`relative aspect-[3/4] w-14 sm:w-full shrink-0 overflow-hidden rounded-xl border-2 transition-all ${activeImage === img ? 'border-emerald-500 shadow-md' : 'border-transparent hover:border-zinc-300 opacity-70 hover:opacity-100'} bg-white`}>
-                <img src={img} alt="" className="h-full w-full object-contain" referrerPolicy="no-referrer" />
+                <Image src={img} alt={`${product.name} ${idx + 1}`} fill sizes="64px" className="object-contain" />
               </button>
             ))}
           </div>

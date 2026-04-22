@@ -9,7 +9,7 @@ import { useCartStore } from '../../store/cartStore';
 import { formatPrice } from '../../lib/utils';
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, clearCart, getTotalPrice } = useCartStore();
+  const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCartStore();
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [showFloatingBar, setShowFloatingBar] = React.useState(true);
   const checkoutBtnRef = React.useRef<HTMLAnchorElement>(null);

@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { motion, useMotionValue, animate } from 'motion/react';
+import Image from 'next/image';
 
 interface ImageSliderProps {
   images: string[];
@@ -99,13 +100,15 @@ export function ImageSlider({ images, activeIndex, onIndexChange, alt }: ImageSl
         className="flex h-full will-change-transform"
       >
         {images.map((img, idx) => (
-          <div key={idx} className="h-full shrink-0" style={{ width: `${100 / images.length}%` }}>
-            <img
+          <div key={idx} className="relative h-full shrink-0" style={{ width: `${100 / images.length}%` }}>
+            <Image
               src={img}
-              alt={alt}
-              className="h-full w-full object-contain"
-              referrerPolicy="no-referrer"
+              alt={`${alt} ${idx + 1}`}
+              fill
+              sizes="(max-width: 1024px) 100vw, 540px"
+              className="object-contain"
               draggable={false}
+              priority={idx === 0}
             />
           </div>
         ))}
