@@ -1,6 +1,6 @@
 'use client';
 
-import { ShoppingCart, Menu, X, Heart, User } from 'lucide-react';
+import { ShoppingCart, Menu, X, Heart } from 'lucide-react';
 import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -111,10 +111,9 @@ export function Header() {
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}
-                className="relative flex items-center gap-2 rounded-2xl p-2 text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 transition-colors"
-                title="Войти"
+                className="flex items-center gap-1.5 rounded-2xl bg-zinc-900 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-700 transition-colors"
               >
-                <User size={20} />
+                Войти
               </button>
             )}
 
