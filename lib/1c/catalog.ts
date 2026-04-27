@@ -115,3 +115,24 @@ export async function fetchProductById(id: string, signal?: AbortSignal): Promis
   }
 }
 
+// Резолвит UUID → slug напрямую через 1С (для серверных роутов, минуя прокси)
+export async function resolveProductSlug(id: string): Promise<string | null> {
+  try {
+    const baseUrl = process.env.ONEC_BASE_URL;
+    const username = process.env.ONEC_USERNAME;
+    const password = process.env.ONEC_PASSWORD;
+    if (!baseUrl) return null;
+
+    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    const res = await fetch(`${baseUrl}/catalog/${id}`, {
+      headers: { Authorization: `Basic ${credentials}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const item: ApiProduct = await res.json();
+    return item.slug || item.article || item.id || null;
+  } catch {
+    return null;
+  }
+}
+

@@ -1,54 +1,46 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveProductSlug } from '../../../lib/1c/catalog';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-
-// Ограничиваем каталог — берём не более 200 товаров, только нужные поля
-const MAX_PRODUCTS_IN_PROMPT = 200;
-
-function buildSystemInstruction(products: unknown[]) {
-  const simplified = (products as any[]).slice(0, MAX_PRODUCTS_IN_PROMPT).map((p) => ({
-    id: p.id,
-    name: p.name,
-    category: p.category,
-    price: p.price,
-    link: `/product/${p.slug}`,
-  }));
-
-  return `
-You are a helpful, friendly AI shopping assistant for MarketMVP, an e-commerce store.
-Your goal is to help users find products, answer questions about the store, and provide recommendations.
-Always be polite and concise.
-
-Here is the store's current catalog:
-${JSON.stringify(simplified)}
-
-CRITICAL RULE 1: Whenever you mention a specific product from the catalog, you MUST provide a markdown link to it using the 'link' property provided in the catalog data.
-Example format: [Product Name](/product/product-slug)
-
-CRITICAL RULE 2: Whenever you mention a price, you MUST wrap it in backticks so it formats as inline code.
-Example format: \`12 990 ₽\`
-
-If a user asks for a product, recommend it from the catalog, mention its price (wrapped in backticks), and provide the link.
-If a user asks something unrelated to shopping or the store, politely steer the conversation back to the store's products.
-`;
-}
+const AI_CHAT_URL = `${process.env.AI_SERVICE_URL || 'http://localhost:8000'}/api/v1/chat`;
+const UUID_RE = /\((?:\/products\/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/gi;
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, history, products } = await req.json();
+    const { message, session_id } = await req.json();
 
-    const chat = ai.chats.create({
-      model: 'gemini-2.0-flash',
-      config: {
-        systemInstruction: buildSystemInstruction(products || []),
-        temperature: 0.7,
-      },
-      history: history || [],
+    const res = await fetch(AI_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: message, session_id: session_id || 'default' }),
     });
 
-    const response = await chat.sendMessage({ message });
-    return NextResponse.json({ text: response.text });
+    if (!res.ok) {
+      return NextResponse.json({ error: 'AI service error' }, { status: res.status });
+    }
+
+    const data = await res.json();
+    const answer: string = data.answer || '';
+
+    // Собираем все UUID из ссылок /products/<uuid> прямо в тексте ответа
+    const ids = [...new Set([...answer.matchAll(UUID_RE)].map((m) => m[1]))];
+
+    // Резолвим каждый UUID → slug напрямую через 1С
+    const slugMap: Record<string, string> = {};
+    await Promise.all(
+      ids.map(async (id) => {
+        const slug = await resolveProductSlug(id);
+        console.log(`[ai-chat] resolve ${id} → ${slug}`);
+        if (slug) slugMap[id] = slug;
+      })
+    );
+
+    // Заменяем (UUID) → (/product/<slug>) прямо в markdown
+    const fixedAnswer = answer.replace(
+      UUID_RE,
+      (_, id: string) => `(/product/${slugMap[id] ?? id})`
+    );
+
+    return NextResponse.json({ text: fixedAnswer });
   } catch (error) {
     console.error('AI Chat error:', error);
     return NextResponse.json({ error: 'AI service error' }, { status: 500 });
