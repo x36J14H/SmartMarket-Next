@@ -24,16 +24,21 @@ export const useCartStore = create<CartState>()(
       synced: false,
 
       addItem: async (product, quantity = 1) => {
+        const inStock = product.inStock ?? 0;
         set((state) => {
           const existing = state.items.find((i) => i.id === product.id);
           if (existing) {
+            const newQty = inStock > 0
+              ? Math.min(existing.quantity + quantity, inStock)
+              : existing.quantity + quantity;
             return {
               items: state.items.map((i) =>
-                i.id === product.id ? { ...i, quantity: i.quantity + quantity } : i
+                i.id === product.id ? { ...i, quantity: newQty } : i
               ),
             };
           }
-          return { items: [...state.items, { ...product, quantity }] };
+          const initialQty = inStock > 0 ? Math.min(quantity, inStock) : quantity;
+          return { items: [...state.items, { ...product, quantity: initialQty }] };
         });
 
         try {
@@ -70,13 +75,16 @@ export const useCartStore = create<CartState>()(
 
       updateQuantity: async (productId, quantity) => {
         const prev = get().items;
+        const item = prev.find((i) => i.id === productId);
+        const inStock = item?.inStock ?? 0;
+        const clampedQty = inStock > 0 ? Math.min(quantity, inStock) : quantity;
 
-        if (quantity <= 0) {
+        if (clampedQty <= 0) {
           set((state) => ({ items: state.items.filter((i) => i.id !== productId) }));
         } else {
           set((state) => ({
             items: state.items.map((i) =>
-              i.id === productId ? { ...i, quantity } : i
+              i.id === productId ? { ...i, quantity: clampedQty } : i
             ),
           }));
         }
@@ -126,6 +134,7 @@ export const useCartStore = create<CartState>()(
                 ? `/api/1c/catalog/${i.id}/images/${i.imageUrl}`
                 : '/service/image-unavailable.png',
               quantity: i.qty,
+              inStock: 0,
               category: '',
               categorySlug: '',
               subcategory: '',

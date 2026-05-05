@@ -12,6 +12,7 @@ export interface Product {
   brandSlug: string;
   price: number;
   oldPrice?: number;
+  inStock: number;
   description: string;
   shortDescription: string;
   imageUrl: string;

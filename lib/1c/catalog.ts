@@ -26,6 +26,7 @@ export function mapApiProduct(item: ApiProduct): Product {
     brandSlug: item.brandSlug || '',
     price: item.price ?? 0,
     oldPrice: item.oldPrice,
+    inStock: item.inStock ?? 0,
     description: item.description || '',
     shortDescription: item.shortDescription || item.description || '',
     imageUrl: mainImage,
@@ -94,14 +95,15 @@ export async function fetchBrands(signal?: AbortSignal): Promise<{ name: string;
   }
 }
 
-// Находит товар по slug через ?slug= затем грузит полную карточку по id
+// Находит товар по slug через GET /catalog/slug/{slug}
 export async function fetchProductBySlug(slug: string, signal?: AbortSignal): Promise<Product | null> {
-  const qs = new URLSearchParams({ slug, limit: '1' });
-  const res = await onecClient.get<ApiCatalogResponse>(`catalog?${qs.toString()}`, signal);
-  const item = res.items?.[0];
-  if (!item) return null;
-  // Грузим полную карточку (с images[] и characteristics)
-  return fetchProductById(item.id, signal);
+  try {
+    const item = await onecClient.get<ApiProduct>(`catalog/slug/${encodeURIComponent(slug)}`, signal);
+    if (!item?.id) return null;
+    return mapApiProduct(item);
+  } catch {
+    return null;
+  }
 }
 
 // Загружает полную карточку товара по id (GUID)

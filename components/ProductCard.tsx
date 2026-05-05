@@ -27,6 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    if ((product.inStock ?? 0) === 0) return;
     addItem(product);
     if (window.innerWidth >= 1024) toast.success('Товар добавлен в корзину');
   };
@@ -93,7 +94,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <div className="flex h-10 items-center rounded-full border border-emerald-500 bg-emerald-50/50">
                 <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity - 1)} className="flex h-full w-10 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-l-full transition-colors"><Minus size={16} /></button>
                 <span className="flex w-8 items-center justify-center text-sm font-bold text-emerald-900">{cartItem.quantity}</span>
-                <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)} className="flex h-full w-10 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-r-full transition-colors"><Plus size={16} /></button>
+                <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)} disabled={(product.inStock ?? 0) > 0 && cartItem.quantity >= product.inStock} className="flex h-full w-10 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-r-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Plus size={16} /></button>
               </div>
             ) : (
               <button onClick={handleAddToCart} className="flex h-10 px-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-900 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md gap-2 font-semibold text-sm w-full sm:w-auto" aria-label="В корзину">
@@ -116,7 +117,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <div className="flex h-8 sm:h-10 items-center rounded-full border border-emerald-500 bg-emerald-50/50 w-full sm:w-auto justify-between sm:justify-start">
                   <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity - 1)} className="flex h-full w-8 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-l-full transition-colors"><Minus size={14} /></button>
                   <span className="flex w-6 items-center justify-center text-xs sm:text-sm font-bold text-emerald-900">{cartItem.quantity}</span>
-                  <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)} className="flex h-full w-8 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-r-full transition-colors"><Plus size={14} /></button>
+                  <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)} disabled={(product.inStock ?? 0) > 0 && cartItem.quantity >= product.inStock} className="flex h-full w-8 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-r-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Plus size={14} /></button>
                 </div>
               ) : (
                 <button onClick={handleAddToCart} className="flex h-8 sm:h-10 w-full sm:w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-900 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md gap-2" aria-label="В корзину">

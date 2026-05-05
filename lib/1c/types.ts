@@ -17,6 +17,7 @@ export interface ApiProduct {
   brandSlug: string;
   price: number;
   oldPrice?: number;
+  inStock: number;
   imageUrl: string;
   images: string[];
   characteristics: Record<string, string>;

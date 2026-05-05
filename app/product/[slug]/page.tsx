@@ -240,8 +240,19 @@ export default function ProductPage() {
                 <span className="text-4xl font-extrabold text-zinc-900 tracking-tight">{formatPrice(product.price)}</span>
                 {product.oldPrice && <span className="text-lg font-medium text-zinc-400 line-through">{formatPrice(product.oldPrice)}</span>}
               </div>
+              <div className="mt-3">
+                {product.inStock > 0 ? (
+                  <span className="text-sm font-semibold text-emerald-600">В наличии: {product.inStock} шт.</span>
+                ) : (
+                  <span className="text-sm font-semibold text-rose-500">Нет в наличии</span>
+                )}
+              </div>
               <div className="mt-8 flex items-center gap-3">
-                {cartItem ? (
+                {product.inStock === 0 ? (
+                  <button disabled className="flex-1 bg-zinc-200 text-zinc-400 rounded-2xl h-14 font-bold text-base cursor-not-allowed">
+                    Нет в наличии
+                  </button>
+                ) : cartItem ? (
                   <>
                     <button onClick={() => router.push('/cart')} className="flex-1 bg-emerald-500 text-white rounded-2xl h-14 flex items-center justify-center transition-all hover:bg-emerald-600 hover:shadow-md hover:-translate-y-0.5">
                       <span className="font-bold text-base">В корзине</span>
@@ -249,7 +260,11 @@ export default function ProductPage() {
                     <div className="flex items-center bg-zinc-100 rounded-2xl h-14 px-1.5 ring-1 ring-zinc-200/50">
                       <button onClick={() => { if (cartItem.quantity === 1) removeItem(product.id); else updateQuantity(product.id, cartItem.quantity - 1); }} className="w-10 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"><Minus size={18} /></button>
                       <span className="w-8 text-center font-bold text-zinc-900">{cartItem.quantity}</span>
-                      <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)} className="w-10 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"><Plus size={18} /></button>
+                      <button
+                        onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+                        disabled={cartItem.quantity >= product.inStock}
+                        className="w-10 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      ><Plus size={18} /></button>
                     </div>
                   </>
                 ) : (
@@ -308,17 +323,29 @@ export default function ProductPage() {
       )}
 
       {/* Mobile floating bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 border-t border-zinc-200 p-3 shadow-[0_-8px_30px_rgb(0,0,0,0.04)] backdrop-blur-lg">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 border-t border-zinc-200 px-3 py-3 shadow-[0_-8px_30px_rgb(0,0,0,0.04)] backdrop-blur-lg">
         <div className="flex items-center gap-3 max-w-md mx-auto">
-          {cartItem ? (
-            <div className="flex flex-1 items-center bg-zinc-100 rounded-2xl h-12 px-1.5 ring-1 ring-zinc-200/50">
+          {product.inStock === 0 ? (
+            <button disabled className="flex-1 bg-zinc-200 text-zinc-400 rounded-2xl h-12 font-bold text-sm cursor-not-allowed">
+              Нет в наличии
+            </button>
+          ) : cartItem ? (
+            <div className="flex flex-1 items-center bg-zinc-100 rounded-2xl h-14 px-1.5 ring-1 ring-zinc-200/50">
               <button onClick={() => { if (cartItem.quantity === 1) removeItem(product.id); else updateQuantity(product.id, cartItem.quantity - 1); }} className="w-10 h-full flex items-center justify-center text-zinc-500"><Minus size={18} /></button>
-              <span className="flex-1 text-center font-bold text-zinc-900 text-sm">{cartItem.quantity} шт</span>
-              <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)} className="w-10 h-full flex items-center justify-center text-zinc-500"><Plus size={18} /></button>
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <span className="font-bold text-zinc-900 text-sm leading-tight">{cartItem.quantity} шт</span>
+                <span className="text-[10px] text-zinc-400 font-medium leading-tight">В наличии: {product.inStock} шт.</span>
+              </div>
+              <button
+                onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+                disabled={cartItem.quantity >= product.inStock}
+                className="w-10 h-full flex items-center justify-center text-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+              ><Plus size={18} /></button>
             </div>
           ) : (
-            <button onClick={() => addItem(product, 1)} className="flex-1 bg-emerald-500 text-white rounded-2xl h-12 font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform">
-              В корзину
+            <button onClick={() => addItem(product, 1)} className="flex-1 flex flex-col items-center justify-center bg-emerald-500 text-white rounded-2xl h-14 shadow-lg shadow-emerald-500/20 active:scale-95 transition-transform">
+              <span className="font-bold text-sm leading-tight">В корзину</span>
+              <span className="text-[10px] text-emerald-100 font-medium leading-tight">В наличии: {product.inStock} шт.</span>
             </button>
           )}
           <button onClick={handleToggleFavorite} className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all shrink-0 ${isFavorite ? 'bg-rose-50 text-rose-500 ring-1 ring-rose-200' : 'bg-zinc-50 text-zinc-400 ring-1 ring-zinc-200/50'}`}>
