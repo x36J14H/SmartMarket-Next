@@ -1,5 +1,5 @@
 import { onecClient } from './client';
-import type { ApiCatalogResponse, ApiCategoriesResponse, ApiProduct, CatalogParams } from './types';
+import type { ApiAvailabilityItem, ApiCatalogResponse, ApiCategoriesResponse, ApiProduct, ApiProductMini, ApiProductsByIdsResponse, CatalogParams } from './types';
 import type { Product } from '../../types';
 import type { Category } from '../../store/productsStore';
 
@@ -138,3 +138,79 @@ export async function resolveProductSlug(id: string): Promise<string | null> {
   }
 }
 
+
+// Пакетная проверка актуальных цен и остатков — GET /catalog/availability?ids=...
+// Возвращает Map<id, { price, inStock }> для удобного поиска по id.
+export async function fetchAvailability(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<Map<string, ApiAvailabilityItem>> {
+  if (ids.length === 0) return new Map();
+
+  const result = new Map<string, ApiAvailabilityItem>();
+  try {
+    const items = await onecClient.get<ApiAvailabilityItem[]>(
+      `catalog/availability?ids=${ids.slice(0, 200).join(',')}`,
+      signal,
+    );
+    for (const item of items) result.set(item.id, item);
+  } catch {
+    // При ошибке возвращаем пустую Map — вызывающий код решает как деградировать
+  }
+  return result;
+}
+
+// Пакетная загрузка мини-карточек по списку UUID — POST /catalog/by-ids
+// Один запрос вместо N. Используется для AI-поиска, избранного и корзины.
+// Порядок результатов соответствует порядку переданных ids (сортируем на клиенте).
+export async function fetchProductsByIds(
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<Product[]> {
+  if (ids.length === 0) return [];
+
+  try {
+    const { items } = await onecClient.post<ApiProductsByIdsResponse>(
+      'catalog/by-ids',
+      { ids: ids.slice(0, 200) },
+      signal,
+    );
+
+    // Восстанавливаем порядок как в исходном массиве ids
+    const byId = new Map(items.map((item) => [item.id, item]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((item): item is ApiProductMini => !!item)
+      .map(mapApiProductMini);
+  } catch {
+    return [];
+  }
+}
+
+function mapApiProductMini(item: ApiProductMini): Product {
+  const imgUrl = item.imageUrl
+    ? `/api/1c/catalog/${item.id}/images/${item.imageUrl}`
+    : '/service/image-unavailable.png';
+  return {
+    id: item.id,
+    slug: item.slug || item.id,
+    name: item.name,
+    price: item.price ?? 0,
+    inStock: item.inStock ?? 0,
+    imageUrl: imgUrl,
+    // Поля, которых нет в мини-карточке — пустые значения
+    category: '',
+    categorySlug: '',
+    subcategory: '',
+    subcategorySlug: '',
+    type: '',
+    typeSlug: '',
+    brand: '',
+    brandSlug: '',
+    description: '',
+    shortDescription: '',
+    images: [imgUrl],
+    characteristics: {},
+    sku: item.id,
+  };
+}

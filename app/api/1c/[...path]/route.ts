@@ -9,11 +9,7 @@ const AUTH_HEADER = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('
 // Разрешённые префиксы путей — защита от SSRF
 const ALLOWED_PREFIXES = ['catalog', 'categories', 'brands'];
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params;
+async function proxyRequest(req: NextRequest, path: string[]): Promise<NextResponse> {
   const joined = path.join('/');
 
   if (!ALLOWED_PREFIXES.some((prefix) => joined.startsWith(prefix))) {
@@ -21,12 +17,19 @@ export async function GET(
   }
 
   const url = new URL(`${BASE_URL}/${joined}`);
-  // Прокидываем все query-параметры (page, limit, category, brand, q и т.д.)
   req.nextUrl.searchParams.forEach((value, key) => url.searchParams.set(key, value));
 
   try {
+    const isPost = req.method === 'POST';
+    const body = isPost ? await req.text() : undefined;
+
     const res = await fetch(url.toString(), {
-      headers: { Authorization: AUTH_HEADER },
+      method: req.method,
+      headers: {
+        Authorization: AUTH_HEADER,
+        ...(isPost ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body,
       credentials: 'omit',
       signal: AbortSignal.timeout(15000),
     });
@@ -39,7 +42,6 @@ export async function GET(
         status: res.status,
         headers: {
           'Content-Type': contentType,
-          // fileId — неизменяемый UUID, кэшируем на 30 дней
           'Cache-Control': 'public, max-age=2592000, immutable',
         },
       });
@@ -51,4 +53,20 @@ export async function GET(
     const message = e instanceof Error ? e.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 502 });
   }
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  return proxyRequest(req, path);
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const { path } = await params;
+  return proxyRequest(req, path);
 }

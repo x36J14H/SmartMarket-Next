@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CartItem, Product } from '../types';
 import { personalService } from '../lib/1c/personal';
+import { fetchAvailability } from '../lib/1c/catalog';
 
 interface CartState {
   items: CartItem[];
@@ -170,21 +171,14 @@ export const useCartStore = create<CartState>()(
         const ids = get().items.map((i) => i.id);
         if (ids.length === 0) return;
 
-        const results = await Promise.allSettled(
-          ids.map((id) =>
-            fetch(`/api/1c/catalog/${id}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((data) => data as { id: string; inStock: number } | null)
-          )
-        );
+        const availability = await fetchAvailability(ids);
+        if (availability.size === 0) return;
 
         set((state) => ({
           items: state.items.map((item) => {
-            const result = results[ids.indexOf(item.id)];
-            if (result?.status === 'fulfilled' && result.value?.id) {
-              return { ...item, inStock: result.value.inStock ?? 0 };
-            }
-            return item;
+            const data = availability.get(item.id);
+            if (!data) return item;
+            return { ...item, price: data.price, inStock: data.inStock };
           }),
         }));
       },

@@ -52,3 +52,25 @@ export interface CatalogParams {
 export interface ApiCategoriesResponse {
   categories: ApiCategory[];
 }
+
+export interface ApiAvailabilityItem {
+  id: string;
+  price: number;
+  inStock: number;
+}
+
+// Мини-карточка из POST /catalog/by-ids
+export interface ApiProductMini {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  inStock: number;
+  imageUrl: string;
+}
+
+export interface ApiProductsByIdsResponse {
+  items: ApiProductMini[];
+  total: number;
+  notFound: string[];
+}

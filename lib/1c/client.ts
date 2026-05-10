@@ -14,4 +14,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const onecClient = {
   get: <T>(path: string, signal?: AbortSignal) =>
     request<T>(path, { signal }),
+
+  post: <T>(path: string, body: unknown, signal?: AbortSignal) =>
+    request<T>(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    }),
 };

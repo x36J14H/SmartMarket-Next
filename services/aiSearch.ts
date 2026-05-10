@@ -1,4 +1,4 @@
-import { fetchCatalog } from '../lib/1c/catalog';
+import { fetchCatalog, fetchProductsByIds } from '../lib/1c/catalog';
 import type { Product } from '../types';
 
 const MAX_CACHE_SIZE = 50;
@@ -38,16 +38,9 @@ export async function searchProducts(
       const { ids } = await res.json() as { ids: string[] };
 
       if (ids.length > 0) {
-        // Грузим товары по ids через каталог (текстовый поиск по каждому не нужен —
-        // берём страницу каталога и фильтруем по полученным ids)
-        const result = await fetchCatalog({ limit: 100 }, signal);
-        const idSet = new Set(ids);
-        // Сортируем в том же порядке что вернул AI
-        const matched = ids
-          .map((id) => result.products.find((p) => p.id === id))
-          .filter((p): p is Product => !!p);
-
-        const data = { products: matched, total: matched.length };
+        // Один пакетный запрос вместо N отдельных
+        const products = await fetchProductsByIds(ids, signal);
+        const data = { products, total: products.length };
         addToCache(cacheKey, data);
         return data;
       }

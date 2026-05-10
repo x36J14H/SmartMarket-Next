@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Heart, ArrowLeft, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFavoritesStore } from '../../store/favoritesStore';
-import { fetchProductById } from '../../lib/1c/catalog';
+import { fetchProductsByIds } from '../../lib/1c/catalog';
 import { ProductCard } from '../../components/ProductCard';
 import type { Product } from '../../types';
 
@@ -18,8 +18,8 @@ export default function FavoritesPage() {
     if (favorites.length === 0) { setProducts([]); return; }
 
     setLoading(true);
-    Promise.all(favorites.map((id) => fetchProductById(id)))
-      .then((results) => setProducts(results.filter((p): p is Product => p !== null)))
+    fetchProductsByIds(favorites)
+      .then(setProducts)
       .finally(() => setLoading(false));
   }, [favorites.join(',')]);
 
