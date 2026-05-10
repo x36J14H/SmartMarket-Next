@@ -5,14 +5,22 @@ import Link from 'next/link';
 import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, CheckSquare, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/cartStore';
 import { formatPrice } from '../../lib/utils';
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCartStore();
+  const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems, refreshStock } = useCartStore();
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [showFloatingBar, setShowFloatingBar] = React.useState(true);
+  const [stockLoading, setStockLoading] = React.useState(true);
   const checkoutBtnRef = React.useRef<HTMLAnchorElement>(null);
+
+  // Загружаем актуальные остатки при открытии корзины
+  React.useEffect(() => {
+    setStockLoading(true);
+    refreshStock().finally(() => setStockLoading(false));
+  }, [refreshStock]);
 
   // Сбрасываем выбор если товар удалён
   React.useEffect(() => {
@@ -190,64 +198,64 @@ export default function CartPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col justify-center">
-                      <div className="flex flex-row sm:grid sm:grid-cols-2 justify-between items-center sm:items-start sm:gap-x-6">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm sm:text-lg font-bold leading-tight line-clamp-1 sm:line-clamp-2">
-                            <Link
-                              href={`/product/${item.slug}`}
-                              className="text-zinc-900 hover:text-emerald-600 transition-colors"
-                            >
-                              {item.name}
-                            </Link>
-                          </h3>
-                          <div className="mt-0.5 sm:mt-2 flex text-[10px] sm:text-sm font-medium">
-                            <p className="text-zinc-500 bg-zinc-50 px-1.5 py-0.5 rounded-md">{item.brand}</p>
-                          </div>
-                          <p className="mt-1 sm:mt-4 text-base sm:text-xl font-extrabold text-zinc-900 tracking-tight">
-                            {formatPrice(item.price)}
-                          </p>
-                        </div>
+                    <div className="flex flex-1 flex-col min-w-0 justify-between">
+                      {/* Название + кнопка удалить (мобиле) */}
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-sm sm:text-lg font-bold leading-snug line-clamp-3 sm:line-clamp-2 flex-1 min-w-0">
+                          <Link
+                            href={`/product/${item.slug}`}
+                            className="text-zinc-900 hover:text-emerald-600 transition-colors"
+                          >
+                            {item.name}
+                          </Link>
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="shrink-0 inline-flex p-1.5 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
 
-                        <div className="flex flex-col items-end justify-between sm:justify-center gap-2 sm:gap-0 shrink-0">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              className="sm:hidden inline-flex p-1.5 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                            <div className="flex items-center rounded-xl border border-zinc-200 bg-zinc-50 p-0.5 sm:p-1">
-                              <button
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="p-1.5 sm:p-2 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg transition-all shadow-sm"
-                              >
-                                <Minus size={14} className="sm:hidden" />
-                                <Minus size={16} className="hidden sm:block" />
-                              </button>
-                              <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-bold text-zinc-900">
-                                {item.quantity}
-                              </span>
-                              <button
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="p-1.5 sm:p-2 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg transition-all shadow-sm"
-                              >
-                                <Plus size={14} className="sm:hidden" />
-                                <Plus size={16} className="hidden sm:block" />
-                              </button>
-                            </div>
-                          </div>
-                          <div className="hidden sm:block">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              className="inline-flex p-2 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                            >
-                              <span className="sr-only">Удалить</span>
-                              <Trash2 className="h-5 w-5" aria-hidden="true" />
-                            </button>
-                          </div>
+                      {/* Бренд */}
+                      {item.brand && (
+                        <div className="mt-1 flex text-[10px] sm:text-sm font-medium">
+                          <p className="text-zinc-500 bg-zinc-50 px-1.5 py-0.5 rounded-md">{item.brand}</p>
+                        </div>
+                      )}
+
+                      {/* Цена + счётчик */}
+                      <div className="mt-2 sm:mt-4 flex items-center justify-between gap-2">
+                        <p className="text-base sm:text-xl font-extrabold text-zinc-900 tracking-tight">
+                          {formatPrice(item.price * item.quantity)}
+                        </p>
+
+                        <div className="flex items-center rounded-xl border border-zinc-200 bg-zinc-50 p-0.5 sm:p-1 shrink-0">
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            className="p-1.5 sm:p-2 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg transition-all shadow-sm"
+                          >
+                            <Minus size={14} className="sm:hidden" />
+                            <Minus size={16} className="hidden sm:block" />
+                          </button>
+                          <span className="w-8 sm:w-10 text-center text-xs sm:text-sm font-bold text-zinc-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            disabled={stockLoading || (item.inStock > 0 && item.quantity >= item.inStock)}
+                            onClick={() => {
+                              if (item.inStock > 0 && item.quantity >= item.inStock) {
+                                toast.error(`На складе только ${item.inStock} шт.`);
+                                return;
+                              }
+                              updateQuantity(item.id, item.quantity + 1);
+                            }}
+                            className="p-1.5 sm:p-2 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg transition-all shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Plus size={14} className="sm:hidden" />
+                            <Plus size={16} className="hidden sm:block" />
+                          </button>
                         </div>
                       </div>
                     </div>

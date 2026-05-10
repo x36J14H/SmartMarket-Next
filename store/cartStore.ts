@@ -12,6 +12,8 @@ interface CartState {
   clearCart: () => Promise<void>;
   mergeToServer: () => Promise<void>;
   syncWithServer: () => Promise<void>;
+  /** Запрашивает актуальные остатки для всех товаров в корзине */
+  refreshStock: () => Promise<void>;
   reset: () => void;
   getTotalPrice: () => number;
   getTotalItems: () => number;
@@ -77,7 +79,7 @@ export const useCartStore = create<CartState>()(
         const prev = get().items;
         const item = prev.find((i) => i.id === productId);
         const inStock = item?.inStock ?? 0;
-        const clampedQty = inStock > 0 ? Math.min(quantity, inStock) : quantity;
+        const clampedQty = inStock > 0 && quantity > inStock ? inStock : quantity;
 
         if (clampedQty <= 0) {
           set((state) => ({ items: state.items.filter((i) => i.id !== productId) }));
@@ -90,7 +92,7 @@ export const useCartStore = create<CartState>()(
         }
 
         try {
-          await personalService.updateCartItem(productId, quantity);
+          await personalService.updateCartItem(productId, clampedQty);
         } catch (e) {
           if (e instanceof Error && e.message === 'unauthorized') return;
           set({ items: prev });
@@ -123,37 +125,68 @@ export const useCartStore = create<CartState>()(
       syncWithServer: async () => {
         try {
           const serverItems = await personalService.getCart();
-          set({
-            items: serverItems.map((i) => ({
-              id: i.id,
-              name: i.name,
-              article: i.article,
-              slug: i.slug,
-              price: i.price,
-              imageUrl: i.imageUrl
-                ? `/api/1c/catalog/${i.id}/images/${i.imageUrl}`
-                : '/service/image-unavailable.png',
-              quantity: i.qty,
-              inStock: 0,
-              category: '',
-              categorySlug: '',
-              subcategory: '',
-              subcategorySlug: '',
-              type: '',
-              typeSlug: '',
-              brand: '',
-              brandSlug: '',
-              description: '',
-              shortDescription: '',
-              images: [],
-              characteristics: {},
-              sku: i.article,
-            })),
+          set((state) => ({
+            items: serverItems.map((i) => {
+              // Берём локальный item — там хранится inStock и данные каталога
+              const local = state.items.find((l) => l.id === i.id);
+              return {
+                // Данные каталога — из локального стейта (там inStock, brand, category и т.д.)
+                ...(local ?? {
+                  inStock: 0,
+                  category: '',
+                  categorySlug: '',
+                  subcategory: '',
+                  subcategorySlug: '',
+                  type: '',
+                  typeSlug: '',
+                  brand: '',
+                  brandSlug: '',
+                  description: '',
+                  shortDescription: '',
+                  images: [],
+                  characteristics: {},
+                }),
+                // Серверные данные перекрывают (актуальная цена, название, slug)
+                id: i.id,
+                name: i.name,
+                article: i.article,
+                slug: i.slug,
+                price: i.price,
+                imageUrl: i.imageUrl
+                  ? `/api/1c/catalog/${i.id}/images/${i.imageUrl}`
+                  : '/service/image-unavailable.png',
+                quantity: i.qty,
+                sku: i.article,
+              };
+            }),
             synced: true,
-          });
+          }));
         } catch (e) {
           if (e instanceof Error && e.message === 'unauthorized') return;
         }
+      },
+
+      refreshStock: async () => {
+        const ids = get().items.map((i) => i.id);
+        if (ids.length === 0) return;
+
+        const results = await Promise.allSettled(
+          ids.map((id) =>
+            fetch(`/api/1c/catalog/${id}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((data) => data as { id: string; inStock: number } | null)
+          )
+        );
+
+        set((state) => ({
+          items: state.items.map((item) => {
+            const result = results[ids.indexOf(item.id)];
+            if (result?.status === 'fulfilled' && result.value?.id) {
+              return { ...item, inStock: result.value.inStock ?? 0 };
+            }
+            return item;
+          }),
+        }));
       },
 
       reset: () => set({ items: [], synced: false }),
