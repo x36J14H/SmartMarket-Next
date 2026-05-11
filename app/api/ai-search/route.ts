@@ -5,7 +5,11 @@ const AI_BASE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 export async function POST(req: NextRequest) {
   try {
     const { query, limit = 10 } = await req.json();
-    if (!query?.trim()) return NextResponse.json({ ids: [] });
+    if (!query?.trim()) {
+      return NextResponse.json({ ids: [] }, {
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    }
 
     // Пробуем семантический поиск, таймаут 5 сек
     try {
@@ -17,7 +21,9 @@ export async function POST(req: NextRequest) {
       });
       if (res.ok) {
         const data = await res.json();
-        return NextResponse.json({ ids: data.ids ?? [], source: 'semantic' });
+        return NextResponse.json({ ids: data.ids ?? [], source: 'semantic' }, {
+          headers: { 'Cache-Control': 'no-store' },
+        });
       }
     } catch {
       // таймаут или сервис недоступен — идём в fallback
@@ -34,7 +40,9 @@ export async function POST(req: NextRequest) {
     });
     const data = await res.json();
     const ids = (data.items ?? []).map((p: { id: string }) => p.id);
-    return NextResponse.json({ ids, source: 'text' });
+    return NextResponse.json({ ids, source: 'text' }, {
+      headers: { 'Cache-Control': 'no-store' },
+    });
   } catch (error) {
     console.error('AI Search error:', error);
     return NextResponse.json({ ids: [] }, { status: 500 });

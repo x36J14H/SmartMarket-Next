@@ -93,7 +93,7 @@ export function Header() {
 
           <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
             <Suspense fallback={null}>
-              <AISearchBar className="hidden sm:block mx-4" />
+              <AISearchBar className="hidden sm:flex items-center mx-4 w-full max-w-sm lg:max-w-md" />
             </Suspense>
 
             {isLoading ? (

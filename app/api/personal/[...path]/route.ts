@@ -11,7 +11,7 @@ const USERNAME = process.env.ONEC_USERNAME ?? 'Администратор';
 const PASSWORD = process.env.ONEC_PASSWORD ?? '';
 const BASIC_AUTH = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
 
-const ALLOWED_PREFIXES = ['wishlist', 'cart', 'profile'];
+const ALLOWED_PREFIXES = ['wishlist', 'cart', 'profile', 'orders'];
 
 type Context = { params: Promise<{ path: string[] }> };
 

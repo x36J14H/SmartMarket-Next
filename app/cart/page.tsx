@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, CheckSquare, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
@@ -11,10 +12,11 @@ import { formatPrice } from '../../lib/utils';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems, refreshStock } = useCartStore();
+  const router = useRouter();
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [showFloatingBar, setShowFloatingBar] = React.useState(true);
   const [stockLoading, setStockLoading] = React.useState(true);
-  const checkoutBtnRef = React.useRef<HTMLAnchorElement>(null);
+  const checkoutBtnRef = React.useRef<HTMLButtonElement>(null);
 
   // Загружаем актуальные остатки при открытии корзины
   React.useEffect(() => {
@@ -79,6 +81,13 @@ export default function CartPage() {
   const displayItems = someSelected ? items.filter((i) => selected.has(i.id)) : items;
   const displayTotal = displayItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const displayQty = displayItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  const goToCheckout = () => {
+    // Сохраняем выбранные id в sessionStorage чтобы checkout знал что оформлять
+    const ids = someSelected ? [...selected] : items.map((i) => i.id);
+    sessionStorage.setItem('checkout_selected_ids', JSON.stringify(ids));
+    router.push('/checkout');
+  };
 
   if (items.length === 0) {
     return (
@@ -199,7 +208,7 @@ export default function CartPage() {
                     </div>
 
                     <div className="flex flex-1 flex-col min-w-0 justify-between">
-                      {/* Название + кнопка удалить (мобиле) */}
+                      {/* Название + кнопка удалить */}
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-sm sm:text-lg font-bold leading-snug line-clamp-3 sm:line-clamp-2 flex-1 min-w-0">
                           <Link
@@ -271,6 +280,11 @@ export default function CartPage() {
           <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight mb-6 sm:mb-8">
             Сумма заказа
           </h2>
+          {someSelected && (
+            <p className="mb-4 text-xs font-medium text-zinc-500 bg-zinc-50 rounded-xl px-3 py-2">
+              Выбрано {selected.size} из {items.length} товаров
+            </p>
+          )}
           <dl className="space-y-4 sm:space-y-5 text-sm font-medium text-zinc-600">
             <div className="flex items-center justify-between">
               <dt>Товары ({displayQty})</dt>
@@ -288,14 +302,14 @@ export default function CartPage() {
             </div>
           </dl>
           <div className="mt-8 space-y-3">
-            <Link
+            <button
               ref={checkoutBtnRef}
-              href="/checkout"
+              onClick={goToCheckout}
               className="flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-4 text-base font-bold text-white shadow-md hover:bg-emerald-600 hover:-translate-y-0.5 transition-all"
             >
-              Перейти к оформлению
+              {someSelected ? `Оформить выбранные (${selected.size})` : 'Перейти к оформлению'}
               <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
+            </button>
             <p className="text-xs text-center text-zinc-400 font-medium">
               Доступны способы оплаты: Картой, СБП, Долями
             </p>
@@ -321,13 +335,13 @@ export default function CartPage() {
                   {formatPrice(displayTotal)}
                 </span>
               </div>
-              <Link
-                href="/checkout"
+              <button
+                onClick={goToCheckout}
                 className="flex-1 flex items-center justify-center rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
               >
                 Оформить
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              </button>
             </div>
           </motion.div>
         )}

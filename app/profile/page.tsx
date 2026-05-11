@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, Settings, Package, Bell, Shield, LogOut, ChevronRight, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, Eye, EyeOff, Phone, MapPin, Save } from 'lucide-react';
+import { User, Settings, Package, Bell, Shield, LogOut, ChevronRight, Clock, CheckCircle2, Truck, ArrowLeft, Loader2, Eye, EyeOff, Phone, MapPin, XCircle, ClipboardList, Cog, Send } from 'lucide-react';
 import { formatPrice } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
 import { useRouter } from 'next/navigation';
 import { authService } from '../../lib/1c/auth';
 import { personalService } from '../../lib/1c/personal';
+import { ordersService, type Order } from '../../lib/1c/orders';
 import { PasswordStrengthMeter } from '../../components/PasswordStrengthMeter';
 import { checkPasswordStrength } from '../../lib/passwordStrength';
 import { FormActions } from '../../components/FormActions';
@@ -43,16 +44,14 @@ export default function ProfilePage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, [activeTab]);
 
-  const mockOrders = [
-    { id: 'ORD-7721', date: '12 марта 2026', status: 'delivered', total: 12450, items: [{ name: 'Кроссовки Nike Air Max', price: 8900, quantity: 1 }, { name: 'Футболка Jordan Sport', price: 3550, quantity: 1 }] },
-    { id: 'ORD-6542', date: '5 марта 2026', status: 'shipped', total: 5200, items: [{ name: 'Кепка New Era 59Fifty', price: 5200, quantity: 1 }] },
-  ];
-
   const getStatusInfo = (status: string) => {
     switch (status) {
-      case 'delivered': return { label: 'Доставлен', color: 'text-emerald-600 bg-emerald-50', icon: <CheckCircle2 size={14} /> };
-      case 'shipped': return { label: 'В пути', color: 'text-blue-600 bg-blue-50', icon: <Truck size={14} /> };
-      default: return { label: 'В ожидании', color: 'text-zinc-500 bg-zinc-50', icon: <Clock size={14} /> };
+      case 'Выполнен': return { label: 'Выполнен', color: 'text-emerald-600 bg-emerald-50', icon: <CheckCircle2 size={14} /> };
+      case 'Отправлен': return { label: 'В пути', color: 'text-blue-600 bg-blue-50', icon: <Truck size={14} /> };
+      case 'Подтверждён':
+      case 'В обработке': return { label: status, color: 'text-amber-600 bg-amber-50', icon: <Clock size={14} /> };
+      case 'Отменён': return { label: 'Отменён', color: 'text-rose-600 bg-rose-50', icon: <XCircle size={14} /> };
+      default: return { label: status || 'Новый', color: 'text-zinc-500 bg-zinc-50', icon: <Clock size={14} /> };
     }
   };
 
@@ -67,57 +66,7 @@ export default function ProfilePage() {
       case 'personal':
         return <PersonalTab />;
       case 'orders':
-        return (
-          <div>
-            <h2 className="mb-6 sm:mb-8 text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">История заказов</h2>
-            <div className="space-y-4">
-              {mockOrders.map((order) => {
-                const status = getStatusInfo(order.status);
-                const isExpanded = expandedOrder === order.id;
-                return (
-                  <div key={order.id} className="overflow-hidden rounded-2xl border border-zinc-100 bg-zinc-50/50 transition-all hover:border-zinc-200">
-                    <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)} className="flex w-full items-center justify-between p-4 sm:p-6 text-left">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-zinc-900">{order.id}</span>
-                          <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.color}`}>{status.icon}{status.label}</span>
-                        </div>
-                        <span className="text-xs font-medium text-zinc-500">{order.date}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex flex-col items-end">
-                          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Сумма</span>
-                          <span className="text-sm font-bold text-zinc-900">{formatPrice(order.total)}</span>
-                        </div>
-                        <ChevronRight size={20} className={`text-zinc-400 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
-                      </div>
-                    </button>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-zinc-100 bg-white">
-                          <div className="p-4 sm:p-6 space-y-4">
-                            <div className="space-y-3">
-                              {order.items.map((item, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-sm">
-                                  <div className="flex flex-col"><span className="font-bold text-zinc-900">{item.name}</span><span className="text-xs text-zinc-500">{item.quantity} шт.</span></div>
-                                  <span className="font-bold text-zinc-900">{formatPrice(item.price * item.quantity)}</span>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="flex justify-between items-center pt-4 border-t border-zinc-50">
-                              <span className="text-sm font-bold text-zinc-900">Итого</span>
-                              <span className="text-lg font-extrabold text-zinc-900">{formatPrice(order.total)}</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
+        return <OrdersTab getStatusInfo={getStatusInfo} expandedOrder={expandedOrder} setExpandedOrder={setExpandedOrder} />;
       case 'settings':
         return <SettingsTab />;
       default: return null;
@@ -299,6 +248,289 @@ function PersonalTab() {
 
         {isDirty && <FormActions loading={loading} onCancel={handleReset} />}
       </form>
+    </div>
+  );
+}
+
+// Этапы заказа в порядке прохождения
+const ORDER_STEPS = [
+  { key: 'Новый',        label: 'Принят',      icon: ClipboardList },
+  { key: 'Подтверждён',  label: 'Подтверждён', icon: CheckCircle2  },
+  { key: 'В обработке',  label: 'Собирается',  icon: Cog           },
+  { key: 'Отправлен',    label: 'В пути',       icon: Send          },
+  { key: 'Выполнен',     label: 'Доставлен',   icon: Truck         },
+] as const;
+
+function OrderStatusTracker({ status }: { status: string }) {
+  const isCancelled = status === 'Отменён';
+
+  // Индекс текущего шага (-1 если отменён)
+  const currentIdx = isCancelled
+    ? -1
+    : Math.max(ORDER_STEPS.findIndex((s) => s.key === status), 0);
+
+  if (isCancelled) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl bg-rose-50 px-4 py-3">
+        <XCircle size={16} className="text-rose-500 shrink-0" />
+        <span className="text-sm font-bold text-rose-600">Заказ отменён</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-2">
+      {/* Шкала */}
+      <div className="relative flex items-center justify-between">
+        {/* Фоновая линия */}
+        <div className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2 bg-zinc-100 rounded-full" />
+
+        {/* Заполненная линия */}
+        <motion.div
+          className="absolute left-0 top-1/2 h-0.5 -translate-y-1/2 bg-emerald-500 rounded-full origin-left"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: currentIdx / (ORDER_STEPS.length - 1) }}
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
+          style={{ width: '100%' }}
+        />
+
+        {/* Точки */}
+        {ORDER_STEPS.map((step, idx) => {
+          const done = idx < currentIdx;
+          const active = idx === currentIdx;
+          const Icon = step.icon;
+
+          return (
+            <div key={step.key} className="relative z-10 flex flex-col items-center gap-2">
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.05 * idx + 0.1 }}
+                className={`flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full border-2 transition-all ${
+                  done
+                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    : active
+                    ? 'border-emerald-500 bg-white text-emerald-500 shadow-md shadow-emerald-100'
+                    : 'border-zinc-200 bg-white text-zinc-300'
+                }`}
+              >
+                {done ? (
+                  <CheckCircle2 size={14} className="sm:hidden" />
+                ) : (
+                  <Icon size={14} className="sm:hidden" />
+                )}
+                {done ? (
+                  <CheckCircle2 size={16} className="hidden sm:block" />
+                ) : (
+                  <Icon size={16} className="hidden sm:block" />
+                )}
+
+              </motion.div>
+
+              {/* Подпись */}
+              <span
+                className={`text-[9px] sm:text-[11px] font-bold text-center leading-tight max-w-[52px] sm:max-w-[64px] ${
+                  done || active ? 'text-zinc-700' : 'text-zinc-300'
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrdersTab({
+  getStatusInfo,
+  expandedOrder,
+  setExpandedOrder,
+}: {
+  getStatusInfo: (status: string) => { label: string; color: string; icon: React.ReactNode };
+  expandedOrder: string | null;
+  setExpandedOrder: (id: string | null) => void;
+}) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  // Детали заказа подгружаются при раскрытии
+  const [orderDetails, setOrderDetails] = useState<Record<string, Order>>({});
+  const [loadingDetail, setLoadingDetail] = useState<string | null>(null);
+
+  useEffect(() => {
+    ordersService.getOrders()
+      .then(setOrders)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки заказов'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleToggle = async (id: string) => {
+    if (expandedOrder === id) {
+      setExpandedOrder(null);
+      return;
+    }
+    setExpandedOrder(id);
+    if (orderDetails[id]) return;
+
+    setLoadingDetail(id);
+    try {
+      const detail = await ordersService.getOrder(id);
+      setOrderDetails((prev) => ({ ...prev, [id]: detail }));
+    } catch {
+      // Показываем то что есть из списка
+    } finally {
+      setLoadingDetail(null);
+    }
+  };
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return iso;
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="mb-6 sm:mb-8 text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
+        История заказов
+      </h2>
+
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={28} className="animate-spin text-zinc-300" />
+        </div>
+      )}
+
+      {error && (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600">{error}</p>
+      )}
+
+      {!loading && !error && orders.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Package size={40} className="text-zinc-200 mb-4" />
+          <p className="text-base font-bold text-zinc-400">Заказов пока нет</p>
+          <p className="text-sm text-zinc-400 mt-1">Оформите первый заказ в каталоге</p>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {orders.map((order) => {
+          const status = getStatusInfo(order.status);
+          const isExpanded = expandedOrder === order.id;
+          const detail = orderDetails[order.id];
+          const isLoadingDetail = loadingDetail === order.id;
+
+          return (
+            <div
+              key={order.id}
+              className="overflow-hidden rounded-2xl border border-zinc-100 bg-zinc-50/50 transition-all hover:border-zinc-200"
+            >
+              <button
+                onClick={() => handleToggle(order.id)}
+                className="flex w-full items-center justify-between p-4 sm:p-6 text-left"
+              >
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-zinc-900">№{order.number}</span>
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.color}`}
+                    >
+                      {status.icon}
+                      {status.label}
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium text-zinc-500">{formatDate(order.date)}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="hidden sm:flex flex-col items-end">
+                    <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Сумма</span>
+                    <span className="text-sm font-bold text-zinc-900">{formatPrice(order.total)}</span>
+                  </div>
+                  <ChevronRight
+                    size={20}
+                    className={`text-zinc-400 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}
+                  />
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="border-t border-zinc-100 bg-white"
+                  >
+                    <div className="p-4 sm:p-6 space-y-4">
+                      {/* Шкала этапов */}
+                      <OrderStatusTracker status={order.status} />
+
+                      {isLoadingDetail ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 size={20} className="animate-spin text-zinc-300" />
+                        </div>
+                      ) : detail?.items ? (
+                        <>
+                          <div className="space-y-3">
+                            {detail.items.map((item) => (
+                              <div key={item.id} className="flex justify-between items-center text-sm">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-zinc-900">{item.name}</span>
+                                  <span className="text-xs text-zinc-500">
+                                    {item.qty} шт. × {formatPrice(item.price)}
+                                  </span>
+                                </div>
+                                <span className="font-bold text-zinc-900">{formatPrice(item.sum)}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {(detail.delivery_address || detail.delivery_method || detail.payment_method) && (
+                            <div className="pt-3 border-t border-zinc-50 space-y-1.5 text-xs text-zinc-500 font-medium">
+                              {detail.delivery_address && (
+                                <p>Адрес: {detail.delivery_address}</p>
+                              )}
+                              {detail.delivery_method && (
+                                <p>Доставка: {detail.delivery_method}</p>
+                              )}
+                              {detail.payment_method && (
+                                <p>Оплата: {detail.payment_method}</p>
+                              )}
+                              {detail.comment && (
+                                <p>Комментарий: {detail.comment}</p>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center pt-4 border-t border-zinc-50">
+                            <span className="text-sm font-bold text-zinc-900">Итого</span>
+                            <span className="text-lg font-extrabold text-zinc-900">
+                              {formatPrice(detail.total)}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-zinc-900">Итого</span>
+                          <span className="text-lg font-extrabold text-zinc-900">{formatPrice(order.total)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

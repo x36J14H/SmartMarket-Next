@@ -53,7 +53,6 @@ export default function AboutPage() {
             <h2 className="text-3xl font-extrabold text-zinc-900 mb-6 tracking-tight">Наша миссия</h2>
             <div className="space-y-6 text-zinc-600 font-medium leading-relaxed">
               <p>Мы создали MarketMVP, чтобы предложить альтернативу крупным маркетплейсам. Избавившись от их огромных комиссий, мы смогли снизить цены для наших покупателей, сохранив при этом высочайший уровень сервиса.</p>
-              <p>Каждый день наша команда работает над тем, чтобы расширять ассортимент, ускорять доставку и делать интерфейс магазина еще более удобным.</p>
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="grid grid-cols-2 gap-4">
