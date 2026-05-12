@@ -155,7 +155,7 @@ export const useCartStore = create<CartState>()(
                 price: i.price,
                 imageUrl: i.imageUrl
                   ? `/api/1c/catalog/${i.id}/images/${i.imageUrl}`
-                  : '/service/image-unavailable.png',
+                  : '/service/image-unavailable.svg',
                 quantity: i.qty,
                 sku: i.article,
               };

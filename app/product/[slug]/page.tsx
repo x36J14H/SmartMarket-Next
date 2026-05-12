@@ -15,7 +15,7 @@ import { ProductCard } from '../../../components/ProductCard';
 import { fetchProductBySlug, fetchCatalog } from '../../../lib/1c/catalog';
 import { Product } from '../../../types';
 
-const FALLBACK_IMAGE = '/service/image-unavailable.png';
+const FALLBACK_IMAGE = '/service/image-unavailable.svg';
 
 
 export default function ProductPage() {

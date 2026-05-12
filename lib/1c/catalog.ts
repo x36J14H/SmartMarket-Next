@@ -3,7 +3,7 @@ import type { ApiAvailabilityItem, ApiCatalogResponse, ApiCategoriesResponse, Ap
 import type { Product } from '../../types';
 import type { Category } from '../../store/productsStore';
 
-const FALLBACK_IMAGE = '/service/image-unavailable.png';
+const FALLBACK_IMAGE = '/service/image-unavailable.svg';
 
 function imageUrl(productId: string, fileId: string | undefined): string {
   if (!fileId) return FALLBACK_IMAGE;
@@ -190,7 +190,7 @@ export async function fetchProductsByIds(
 function mapApiProductMini(item: ApiProductMini): Product {
   const imgUrl = item.imageUrl
     ? `/api/1c/catalog/${item.id}/images/${item.imageUrl}`
-    : '/service/image-unavailable.png';
+    : '/service/image-unavailable.svg';
   return {
     id: item.id,
     slug: item.slug || item.id,

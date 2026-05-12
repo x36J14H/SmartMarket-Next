@@ -6,3 +6,13 @@ node_modules/
 .vscode/
 1с-api-docs/
 insomnia-collection.json
+
+# next-pwa generated service worker files
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/worker-*.js
+public/worker-*.js.map
+public/fallback-*.js
+public/fallback-*.js.map
