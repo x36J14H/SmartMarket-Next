@@ -8,6 +8,7 @@ import { ProductCard } from '../components/ProductCard';
 import { useProductsStore } from '../store/productsStore';
 import { fetchCatalog } from '../lib/1c/catalog';
 import type { Product } from '../types';
+import Particles from '../components/Particles';
 
 export default function HomePage() {
   const { categories } = useProductsStore();
@@ -23,28 +24,88 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-24 pb-24">
-      <section className="relative overflow-hidden bg-zinc-950 py-24 sm:py-32 lg:pb-40">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-1/2 left-1/2 -z-10 h-[1000px] w-[1000px] -translate-x-1/2 rounded-full bg-emerald-500/20 blur-[120px]" />
-          <div className="absolute top-0 right-0 -z-10 h-[600px] w-[600px] rounded-full bg-indigo-500/20 blur-[120px]" />
-          <div className="absolute bottom-0 left-0 -z-10 h-[400px] w-[400px] rounded-full bg-rose-500/10 blur-[100px]" />
+      {/* Hero — full viewport height minus header (h-16 = 64px) */}
+      <section
+        className="relative overflow-hidden"
+        style={{ height: 'calc(100vh - 64px)' }}
+      >
+        {/* Deep space background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,_#0d1b2a_0%,_#050a10_60%,_#000000_100%)]" />
+
+        {/* Nebula glow layers */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-20%] left-[30%] h-[700px] w-[700px] -translate-x-1/2 rounded-full bg-indigo-700/25 blur-[140px]" />
+          <div className="absolute top-[10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-violet-600/20 blur-[120px]" />
+          <div className="absolute bottom-[-10%] left-[-5%] h-[450px] w-[450px] rounded-full bg-cyan-500/15 blur-[110px]" />
+          <div className="absolute bottom-[20%] right-[20%] h-[300px] w-[300px] rounded-full bg-emerald-500/15 blur-[90px]" />
         </div>
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 relative z-10">
+
+        {/* Particles canvas — fills the whole section */}
+        <div className="absolute inset-0">
+          <Particles
+            particleColors={['#ffffff', '#a5b4fc', '#67e8f9', '#6ee7b7', '#c4b5fd']}
+            particleCount={250}
+            particleSpread={12}
+            speed={0.06}
+            particleBaseSize={80}
+            moveParticlesOnHover={true}
+            particleHoverFactor={0.4}
+            alphaParticles={true}
+            sizeRandomness={1.2}
+            cameraDistance={22}
+            disableRotation={false}
+            pixelRatio={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 flex h-full items-center justify-center px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl text-center">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-white/10 mb-8 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-emerald-300 ring-1 ring-inset ring-white/10 mb-8 backdrop-blur-md"
+            >
               <Sparkles className="h-4 w-4" />
               <span>Умный поиск с AI уже доступен</span>
             </motion.div>
-            <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="text-5xl font-extrabold tracking-tight text-white sm:text-7xl lg:text-8xl">
-              Покупки будущего <br className="hidden sm:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">уже сегодня</span>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="text-5xl font-extrabold tracking-tight text-white sm:text-7xl lg:text-8xl"
+            >
+              Покупки будущего{' '}
+              <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">
+                уже сегодня
+              </span>
             </motion.h1>
-            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mt-8 text-lg text-zinc-400 sm:text-xl leading-relaxed max-w-2xl mx-auto font-medium">
-              Быстрый запуск, удобное управление и полная независимость. Начните продавать напрямую своим клиентам без комиссий маркетплейсов.
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-8 text-lg text-zinc-400 sm:text-xl leading-relaxed max-w-2xl mx-auto font-medium"
+            >
+              Быстрый запуск, удобное управление и полная независимость. Начните
+              продавать напрямую своим клиентам без комиссий маркетплейсов.
             </motion.p>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/catalog" className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-8 py-4 text-base font-bold text-zinc-950 transition-all hover:bg-emerald-400 hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)]">
-                Перейти в каталог<ArrowRight className="ml-2 h-5 w-5" />
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-10 flex flex-col sm:flex-row gap-4 justify-center"
+            >
+              <Link
+                href="/catalog"
+                className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-8 py-4 text-base font-bold text-zinc-950 transition-all hover:bg-emerald-400 hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)]"
+              >
+                Перейти в каталог
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </motion.div>
           </div>
