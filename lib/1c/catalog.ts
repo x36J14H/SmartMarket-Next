@@ -96,12 +96,28 @@ export async function fetchBrands(signal?: AbortSignal): Promise<{ name: string;
 }
 
 // Находит товар по slug через GET /catalog/slug/{slug}
+// Если slug выглядит как UUID — пробует GET /catalog/{id} напрямую
 export async function fetchProductBySlug(slug: string, signal?: AbortSignal): Promise<Product | null> {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const cleanSlug = decodeURIComponent(slug).trim();
   try {
-    const item = await onecClient.get<ApiProduct>(`catalog/slug/${encodeURIComponent(slug)}`, signal);
-    if (!item?.id) return null;
-    return mapApiProduct(item);
-  } catch {
+    if (UUID_RE.test(cleanSlug)) {
+      // Это UUID — идём напрямую в GET /catalog/{id}
+      const item = await onecClient.get<ApiProduct>(`catalog/${cleanSlug}`, signal);
+      if (item?.id) return mapApiProduct(item);
+    }
+    const item = await onecClient.get<ApiProduct>(`catalog/slug/${encodeURIComponent(cleanSlug)}`, signal);
+    if (item?.id) return mapApiProduct(item);
+
+    // Fallback: пробуем как ID напрямую
+    try {
+      const fallbackItem = await onecClient.get<ApiProduct>(`catalog/${cleanSlug}`, signal);
+      if (fallbackItem?.id) return mapApiProduct(fallbackItem);
+    } catch {}
+
+    return null;
+  } catch (e: any) {
+    if (signal?.aborted || e?.name === 'AbortError') return null;
     return null;
   }
 }

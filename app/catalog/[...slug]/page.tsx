@@ -13,17 +13,39 @@ import type { Product } from '../../../types';
 const PAGE_SIZE = 20;
 
 function nameBySlug(categories: Category[], catSlug: string, subSlug?: string, typeSlug?: string): string {
+  // Ищем по первому уровню (категория)
   const cat = categories.find((c) => c.slug === catSlug);
-  if (!cat) return catSlug;
+  if (!cat) {
+    // Слаг не найден на уровне категорий — ищем по всем уровням иерархии
+    for (const c of categories) {
+      const grp = c.groups.find((g) => g.slug === catSlug);
+      if (grp) return grp.name;
+      for (const g of c.groups) {
+        const item = g.items.find((i) => i.slug === catSlug);
+        if (item) return item.name;
+      }
+    }
+    return catSlug;
+  }
   if (!subSlug) return cat.name;
   const grp = cat.groups.find((g) => g.slug === subSlug);
-  if (!grp) return subSlug;
+  if (!grp) {
+    // Ищем subSlug по всем группам всех категорий
+    for (const c of categories) {
+      for (const g of c.groups) {
+        if (g.slug === subSlug) return g.name;
+        const item = g.items.find((i) => i.slug === subSlug);
+        if (item) return item.name;
+      }
+    }
+    return subSlug;
+  }
   if (!typeSlug) return grp.name;
   return grp.items.find((i) => i.slug === typeSlug)?.name ?? typeSlug;
 }
 
 function CatalogContent() {
-  const { categories, brands } = useProductsStore();
+  const { categories, brands, loaded, fetchFilters } = useProductsStore();
   const params = useParams<{ slug: string[] }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -40,9 +62,16 @@ function CatalogContent() {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.name || '');
   const [mobileStep, setMobileStep] = useState<'categories' | 'subcategories'>('categories');
 
+  // Гарантируем загрузку категорий при прямом переходе по URL
+  useEffect(() => {
+    fetchFilters();
+  }, [fetchFilters]);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  // Название страницы — берём из первого товара, чтобы не зависеть от store
+  const [resolvedTitle, setResolvedTitle] = useState<string | null>(null);
 
   useEffect(() => {
     if (!categoryParam) return;
@@ -58,7 +87,26 @@ function CatalogContent() {
       },
       controller.signal
     )
-      .then(({ products: p, total: t }) => { setProducts(p); setTotal(t); })
+      .then(({ products: p, total: t }) => {
+        setProducts(p);
+        setTotal(t);
+        // Резолвим название из первого товара по слагу
+        if (p.length > 0 && !resolvedTitle) {
+          const first = p[0];
+          if (typeParam && first.typeSlug === typeParam) {
+            setResolvedTitle(first.type);
+          } else if (subcategoryParam && first.subcategorySlug === subcategoryParam) {
+            setResolvedTitle(first.subcategory);
+          } else if (categoryParam && first.categorySlug === categoryParam) {
+            setResolvedTitle(first.category);
+          } else {
+            // Слаг может быть любого уровня — ищем совпадение
+            if (first.typeSlug === categoryParam) setResolvedTitle(first.type);
+            else if (first.subcategorySlug === categoryParam) setResolvedTitle(first.subcategory);
+            else if (first.categorySlug === categoryParam) setResolvedTitle(first.category);
+          }
+        }
+      })
       .catch(() => {})
       .finally(() => setIsLoading(false));
 
@@ -160,12 +208,18 @@ function CatalogContent() {
     );
   }
 
-  const pageTitle = nameBySlug(categories, categoryParam, subcategoryParam, typeParam);
+  // Пока категории не загружены — показываем скелетон вместо слага
+  const pageTitle = resolvedTitle
+    ?? (loaded ? nameBySlug(categories, categoryParam, subcategoryParam, typeParam) : null);
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-200/60 pb-6 gap-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">{pageTitle}</h1>
+        {pageTitle ? (
+          <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">{pageTitle}</h1>
+        ) : (
+          <div className="h-10 w-64 rounded-xl bg-zinc-200 animate-pulse" />
+        )}
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center bg-white rounded-xl p-1 shadow-sm ring-1 ring-zinc-200/50">
             <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'}`}><LayoutGrid size={18} /></button>

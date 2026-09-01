@@ -29,13 +29,18 @@ export default function ProductPage() {
   useEffect(() => {
     if (!slug) return;
     const controller = new AbortController();
+    setNotFound(false);
 
     fetchProductBySlug(slug, controller.signal)
       .then((p) => {
+        if (controller.signal.aborted) return;
         if (!p) { setNotFound(true); return; }
         setProduct(p);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setNotFound(true);
+      });
 
     return () => controller.abort();
   }, [slug]);

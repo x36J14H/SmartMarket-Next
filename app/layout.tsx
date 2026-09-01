@@ -3,7 +3,7 @@ import './globals.css';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { Toaster } from 'react-hot-toast';
-import { AIChatbot } from '../components/AIChatbot';
+import { AIChatbotWrapper } from '../components/AIChatbotWrapper';
 import { ProductsInitializer } from '../components/ProductsInitializer';
 import { AuthProvider } from '../components/AuthProvider';
 
@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main className="flex-1">{children}</main>
             <Footer />
             <Toaster position="bottom-right" />
-            <AIChatbot />
+            <AIChatbotWrapper />
           </div>
         </AuthProvider>
       </body>
