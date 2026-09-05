@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingCart, Heart, Minus, Plus } from 'lucide-react';
+import { ShoppingCart, Heart, Minus, Plus, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 import { useCartStore } from '../store/cartStore';
 import { useFavoritesStore } from '../store/favoritesStore';
@@ -24,6 +25,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const cartItem = useCartStore((state) => state.items.find((item) => item.id === product.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
   const isFavorite = useFavoritesStore((state) => state.favorites.includes(product.id));
+
+  const discountPercent =
+    product.oldPrice && product.oldPrice > product.price
+      ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)
+      : null;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -51,77 +57,162 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   return (
     <Link
       href={`/product/${product.slug}`}
-      className={`group flex overflow-hidden rounded-2xl sm:rounded-3xl border border-zinc-200/60 bg-white p-3 sm:p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-zinc-200/50 ${
-        viewMode === 'list' ? 'flex-col sm:flex-row gap-4 sm:gap-6 items-stretch sm:items-center' : 'flex-col'
+      className={`group relative flex overflow-hidden rounded-2xl sm:rounded-3xl border border-zinc-200/80 bg-white p-3 sm:p-4 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-[0_16px_32px_-10px_rgba(0,0,0,0.08),0_0_20px_-5px_rgba(16,185,129,0.12)] hover:-translate-y-1 ${
+        viewMode === 'list'
+          ? 'flex-col sm:flex-row gap-4 sm:gap-6 items-stretch sm:items-center'
+          : 'flex-col'
       }`}
     >
-      <div className={`relative overflow-hidden rounded-xl sm:rounded-2xl bg-zinc-50 shrink-0 ${
-        viewMode === 'list' ? `w-full sm:w-40 ${aspectRatio} sm:aspect-square` : aspectRatio
-      }`}>
+      {/* Image Container with Badges */}
+      <div
+        className={`relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-b from-zinc-50 to-zinc-100/60 shrink-0 ${
+          viewMode === 'list' ? `w-full sm:w-44 ${aspectRatio} sm:aspect-square` : aspectRatio
+        }`}
+      >
         <Image
           src={product.imageUrl}
           alt={product.name}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-          className="object-contain transition-transform duration-700 group-hover:scale-105"
+          className="object-contain p-2 sm:p-3 transition-transform duration-700 ease-out group-hover:scale-108"
         />
-        <button
+
+        {/* Discount Badge */}
+        {discountPercent ? (
+          <div className="absolute left-2.5 top-2.5 flex items-center rounded-full bg-zinc-950/85 px-2 py-0.5 text-[10px] font-extrabold text-emerald-400 backdrop-blur-md ring-1 ring-white/10 shadow-sm">
+            -{discountPercent}%
+          </div>
+        ) : null}
+
+        {/* Favorite Button */}
+        <motion.button
+          whileTap={{ scale: 0.85 }}
           onClick={handleToggleFavorite}
-          className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all ${
-            isFavorite ? 'bg-rose-500 text-white shadow-md' : 'bg-white/80 text-zinc-400 hover:bg-white hover:text-rose-500 hover:shadow-md'
+          className={`absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition-all duration-200 ${
+            isFavorite
+              ? 'bg-rose-500 text-white shadow-md'
+              : 'bg-white/85 text-zinc-400 hover:bg-white hover:text-rose-500 hover:shadow-sm ring-1 ring-black/5'
           }`}
           aria-label="В избранное"
         >
-          <Heart size={16} className={isFavorite ? 'fill-current' : ''} />
-        </button>
+          <Heart size={15} className={isFavorite ? 'fill-current' : ''} />
+        </motion.button>
       </div>
 
       {viewMode === 'list' ? (
-        <div className="flex flex-1 flex-col sm:flex-row gap-4 justify-between h-full py-2">
+        <div className="flex flex-1 flex-col sm:flex-row gap-4 justify-between h-full py-1">
           <div className="flex flex-col flex-1 justify-center">
-            <span className="text-xs font-medium uppercase tracking-wider text-zinc-400">{product.category}</span>
-            <h3 className="mt-1 sm:mt-2 font-semibold leading-snug text-zinc-900 group-hover:text-emerald-600 transition-colors text-base sm:text-lg line-clamp-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700/80">
+              {product.category}
+            </span>
+            <h3 className="mt-1 font-semibold leading-snug text-zinc-950 group-hover:text-emerald-600 transition-colors text-base sm:text-lg line-clamp-2">
               {product.name}
             </h3>
-            <p className="mt-2 text-sm text-zinc-500 line-clamp-2 hidden sm:block">{product.shortDescription}</p>
+            <p className="mt-2 text-sm text-zinc-500 line-clamp-2 hidden sm:block font-normal leading-relaxed">
+              {product.shortDescription}
+            </p>
           </div>
-          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-4 sm:w-48 shrink-0 border-t sm:border-t-0 sm:border-l border-zinc-100 pt-4 sm:pt-0 sm:pl-6">
+
+          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-4 sm:w-52 shrink-0 border-t sm:border-t-0 sm:border-l border-zinc-100 pt-3 sm:pt-0 sm:pl-6">
             <div className="flex flex-col items-start sm:items-end">
-              {product.oldPrice && <span className="text-xs font-medium text-zinc-400 line-through mb-0.5">{formatPrice(product.oldPrice)}</span>}
-              <span className="text-lg sm:text-xl font-bold tracking-tight text-zinc-900">{formatPrice(product.price)}</span>
+              {product.oldPrice && (
+                <span className="text-xs font-medium text-zinc-400 line-through mb-0.5 tabular-nums">
+                  {formatPrice(product.oldPrice)}
+                </span>
+              )}
+              <span className="text-lg sm:text-2xl font-extrabold tracking-tight text-zinc-950 tabular-nums">
+                {formatPrice(product.price)}
+              </span>
             </div>
+
             {cartItem ? (
-              <div className="flex h-10 items-center rounded-full border border-emerald-500 bg-emerald-50/50">
-                <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity - 1)} className="flex h-full w-10 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-l-full transition-colors"><Minus size={16} /></button>
-                <span className="flex w-8 items-center justify-center text-sm font-bold text-emerald-900">{cartItem.quantity}</span>
-                <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)} disabled={(product.inStock ?? 0) > 0 && cartItem.quantity >= product.inStock} className="flex h-full w-10 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-r-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Plus size={16} /></button>
+              <div className="flex h-10 items-center rounded-full border border-emerald-500/80 bg-emerald-50/70 shadow-2xs">
+                <button
+                  onClick={(e) => handleUpdateQuantity(e, cartItem.quantity - 1)}
+                  className="flex h-full w-10 items-center justify-center text-emerald-700 hover:bg-emerald-100/70 rounded-l-full transition-colors active:scale-90"
+                  aria-label="Уменьшить"
+                >
+                  <Minus size={15} />
+                </button>
+                <span className="flex w-8 items-center justify-center text-sm font-extrabold text-emerald-950 tabular-nums">
+                  {cartItem.quantity}
+                </span>
+                <button
+                  onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)}
+                  disabled={(product.inStock ?? 0) > 0 && cartItem.quantity >= product.inStock}
+                  className="flex h-full w-10 items-center justify-center text-emerald-700 hover:bg-emerald-100/70 rounded-r-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed active:scale-90"
+                  aria-label="Увеличить"
+                >
+                  <Plus size={15} />
+                </button>
               </div>
             ) : (
-              <button onClick={handleAddToCart} className="flex h-10 px-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-900 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md gap-2 font-semibold text-sm w-full sm:w-auto" aria-label="В корзину">
-                <ShoppingCart size={16} /><span className="hidden sm:inline">В корзину</span>
+              <button
+                onClick={handleAddToCart}
+                disabled={(product.inStock ?? 0) === 0}
+                className="shimmer-btn flex h-10 px-5 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white transition-all hover:bg-emerald-600 hover:shadow-md gap-2 font-bold text-xs sm:text-sm w-full sm:w-auto disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="В корзину"
+              >
+                <ShoppingCart size={15} />
+                <span>{product.inStock === 0 ? 'Нет в наличии' : 'В корзину'}</span>
               </button>
             )}
           </div>
         </div>
       ) : (
-        <div className="mt-3 sm:mt-5 flex flex-1 flex-col">
-          <span className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-zinc-400">{product.category}</span>
-          <h3 className="mt-1 sm:mt-2 line-clamp-2 text-xs sm:text-sm font-semibold leading-snug text-zinc-900 group-hover:text-emerald-600 transition-colors">{product.name}</h3>
-          <div className="mt-auto pt-3 sm:pt-5">
+        <div className="mt-3 sm:mt-4 flex flex-1 flex-col">
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-700/80">
+            {product.category}
+          </span>
+          <h3 className="mt-1 line-clamp-2 text-xs sm:text-sm font-semibold leading-snug text-zinc-900 group-hover:text-emerald-600 transition-colors">
+            {product.name}
+          </h3>
+
+          <div className="mt-auto pt-3 sm:pt-4">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
               <div className="flex flex-col">
-                {product.oldPrice && <span className="text-[10px] sm:text-xs font-medium text-zinc-400 line-through mb-0.5">{formatPrice(product.oldPrice)}</span>}
-                <span className="text-base sm:text-lg font-bold tracking-tight text-zinc-900">{formatPrice(product.price)}</span>
+                {product.oldPrice && (
+                  <span className="text-[10px] sm:text-xs font-medium text-zinc-400 line-through mb-0.5 tabular-nums">
+                    {formatPrice(product.oldPrice)}
+                  </span>
+                )}
+                <span className="text-base sm:text-lg font-extrabold tracking-tight text-zinc-950 tabular-nums">
+                  {formatPrice(product.price)}
+                </span>
               </div>
+
               {cartItem ? (
-                <div className="flex h-8 sm:h-10 items-center rounded-full border border-emerald-500 bg-emerald-50/50 w-full sm:w-auto justify-between sm:justify-start">
-                  <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity - 1)} className="flex h-full w-8 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-l-full transition-colors"><Minus size={14} /></button>
-                  <span className="flex w-6 items-center justify-center text-xs sm:text-sm font-bold text-emerald-900">{cartItem.quantity}</span>
-                  <button onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)} disabled={(product.inStock ?? 0) > 0 && cartItem.quantity >= product.inStock} className="flex h-full w-8 items-center justify-center text-emerald-600 hover:bg-emerald-100/50 rounded-r-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"><Plus size={14} /></button>
+                <div className="flex h-8 sm:h-9 items-center rounded-full border border-emerald-500/80 bg-emerald-50/70 shadow-2xs w-full sm:w-auto justify-between sm:justify-start">
+                  <button
+                    onClick={(e) => handleUpdateQuantity(e, cartItem.quantity - 1)}
+                    className="flex h-full w-8 items-center justify-center text-emerald-700 hover:bg-emerald-100/70 rounded-l-full transition-colors active:scale-90"
+                    aria-label="Уменьшить"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span className="flex w-6 items-center justify-center text-xs font-extrabold text-emerald-950 tabular-nums">
+                    {cartItem.quantity}
+                  </span>
+                  <button
+                    onClick={(e) => handleUpdateQuantity(e, cartItem.quantity + 1)}
+                    disabled={(product.inStock ?? 0) > 0 && cartItem.quantity >= product.inStock}
+                    className="flex h-full w-8 items-center justify-center text-emerald-700 hover:bg-emerald-100/70 rounded-r-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed active:scale-90"
+                    aria-label="Увеличить"
+                  >
+                    <Plus size={13} />
+                  </button>
                 </div>
               ) : (
-                <button onClick={handleAddToCart} className="flex h-8 sm:h-10 w-full sm:w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-900 transition-all hover:bg-emerald-500 hover:text-white hover:shadow-md gap-2" aria-label="В корзину">
-                  <ShoppingCart size={16} /><span className="sm:hidden text-xs font-bold">В корзину</span>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={(product.inStock ?? 0) === 0}
+                  className="shimmer-btn flex h-8 sm:h-9 w-full sm:w-9 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white transition-all hover:bg-emerald-600 hover:shadow-md gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="В корзину"
+                >
+                  <ShoppingCart size={14} />
+                  <span className="sm:hidden text-xs font-bold">
+                    {product.inStock === 0 ? 'Нет' : 'Купить'}
+                  </span>
                 </button>
               )}
             </div>

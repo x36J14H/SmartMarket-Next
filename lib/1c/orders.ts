@@ -43,10 +43,11 @@ export interface CreateOrderError {
   out_of_stock?: OutOfStockItem[];
 }
 
-const BASE = '/api/personal';
+const BASE = '/api/orders';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const url = path ? `${BASE}${path}` : BASE;
+  const res = await fetch(url, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     signal: init?.signal ?? AbortSignal.timeout(15000),
@@ -70,12 +71,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const ordersService = {
-  getOrders: () => request<Order[]>('/orders'),
+  getOrders: () => request<Order[]>(''),
 
-  getOrder: (id: string) => request<Order>(`/orders/${id}`),
+  getOrder: (id: string) => request<Order>(`/${id}`),
 
   createOrder: (payload: CreateOrderPayload) =>
-    request<Order>('/orders', {
+    request<Order>('', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

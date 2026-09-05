@@ -16,7 +16,12 @@ export default function CartPage() {
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [showFloatingBar, setShowFloatingBar] = React.useState(true);
   const [stockLoading, setStockLoading] = React.useState(true);
+  const [promoCode, setPromoCode] = React.useState('');
+  const [appliedPromo, setAppliedPromo] = React.useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = React.useState(0);
   const checkoutBtnRef = React.useRef<HTMLButtonElement>(null);
+
+  const FREE_SHIPPING_THRESHOLD = 5000;
 
   // Загружаем актуальные остатки при открытии корзины
   React.useEffect(() => {
@@ -81,6 +86,36 @@ export default function CartPage() {
   const displayItems = someSelected ? items.filter((i) => selected.has(i.id)) : items;
   const displayTotal = displayItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const displayQty = displayItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  const handleApplyPromo = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+    if (code === 'SMART10' || code === 'SMART') {
+      const disc = Math.round(displayTotal * 0.1);
+      setDiscountAmount(disc);
+      setAppliedPromo(code);
+      toast.success('Промокод применен: скидка 10%!');
+    } else if (code === 'VIP') {
+      const disc = Math.min(displayTotal, 1000);
+      setDiscountAmount(disc);
+      setAppliedPromo(code);
+      toast.success('Промокод VIP применен: скидка 1 000 ₽!');
+    } else {
+      toast.error('Промокод не найден или срок его действия истек');
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setDiscountAmount(0);
+    setPromoCode('');
+    toast.success('Промокод отменен');
+  };
+
+  const finalTotal = Math.max(0, displayTotal - discountAmount);
+  const freeShippingProgress = Math.min(100, Math.round((finalTotal / FREE_SHIPPING_THRESHOLD) * 100));
+  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - finalTotal);
 
   const goToCheckout = () => {
     // Сохраняем выбранные id в sessionStorage чтобы checkout знал что оформлять
@@ -276,42 +311,111 @@ export default function CartPage() {
         </section>
 
         {/* Сайдбар с суммой */}
-        <section className="mt-8 sm:mt-16 rounded-3xl bg-white p-6 sm:p-8 lg:col-span-5 lg:mt-0 shadow-sm ring-1 ring-zinc-200/50 sticky top-24">
-          <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight mb-6 sm:mb-8">
+        <section className="mt-8 sm:mt-16 rounded-3xl bg-white p-6 sm:p-8 lg:col-span-5 lg:mt-0 shadow-sm border border-zinc-200/80 sticky top-24 space-y-6">
+          {/* Free Shipping Progress Bar */}
+          <div className="rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/50 p-4 border border-emerald-100">
+            <div className="flex items-center justify-between text-xs font-bold text-emerald-950 mb-2">
+              <span>
+                {remainingForFreeShipping === 0
+                  ? '🎉 Бесплатная доставка активна!'
+                  : `До бесплатной доставки: ${formatPrice(remainingForFreeShipping)}`}
+              </span>
+              <span className="tabular-nums font-extrabold">{freeShippingProgress}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-emerald-200/60 overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${freeShippingProgress}%` }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+              />
+            </div>
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-950 font-display tracking-tight">
             Сумма заказа
           </h2>
+
           {someSelected && (
-            <p className="mb-4 text-xs font-medium text-zinc-500 bg-zinc-50 rounded-xl px-3 py-2">
+            <p className="text-xs font-semibold text-zinc-500 bg-zinc-50 rounded-xl px-3 py-2 border border-zinc-100">
               Выбрано {selected.size} из {items.length} товаров
             </p>
           )}
-          <dl className="space-y-4 sm:space-y-5 text-sm font-medium text-zinc-600">
+
+          {/* Promo code form */}
+          <div className="pt-1">
+            {appliedPromo ? (
+              <div className="flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-3 border border-emerald-200 text-xs font-bold text-emerald-800">
+                <div className="flex items-center gap-2">
+                  <span>Промокод {appliedPromo} применен</span>
+                  <span className="rounded bg-emerald-600 text-white px-1.5 py-0.5 text-[10px]">
+                    -{formatPrice(discountAmount)}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemovePromo}
+                  className="text-emerald-700 hover:text-rose-600 transition-colors"
+                >
+                  Удалить
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleApplyPromo} className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  placeholder="Промокод (SMART10 или VIP)"
+                  className="flex-1 rounded-2xl border border-zinc-200 bg-zinc-50/70 px-4 py-2.5 text-xs font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all uppercase"
+                />
+                <button
+                  type="submit"
+                  disabled={!promoCode.trim()}
+                  className="rounded-2xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white hover:bg-zinc-800 disabled:opacity-40 transition-all"
+                >
+                  Применить
+                </button>
+              </form>
+            )}
+          </div>
+
+          <dl className="space-y-3.5 text-sm font-medium text-zinc-600 pt-2 border-t border-zinc-100">
             <div className="flex items-center justify-between">
               <dt>Товары ({displayQty})</dt>
-              <dd className="font-bold text-zinc-900">{formatPrice(displayTotal)}</dd>
+              <dd className="font-bold text-zinc-950 tabular-nums">{formatPrice(displayTotal)}</dd>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex items-center justify-between text-emerald-600">
+                <dt>Скидка по промокоду</dt>
+                <dd className="font-bold tabular-nums">-{formatPrice(discountAmount)}</dd>
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <dt>Скидка</dt>
-              <dd className="font-bold text-emerald-600">0 ₽</dd>
+              <dt>Доставка</dt>
+              <dd className="font-bold text-emerald-600">
+                {remainingForFreeShipping === 0 ? 'Бесплатно' : 'От 149 ₽'}
+              </dd>
             </div>
-            <div className="flex items-center justify-between border-t border-zinc-100 pt-4 sm:pt-6 mt-4 sm:mt-6">
-              <dt className="text-base sm:text-lg font-extrabold text-zinc-900">Итого к оплате</dt>
-              <dd className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">
-                {formatPrice(displayTotal)}
+            <div className="flex items-center justify-between border-t border-zinc-100 pt-4 mt-4">
+              <dt className="text-base sm:text-lg font-extrabold text-zinc-950">Итого к оплате</dt>
+              <dd className="text-2xl sm:text-3xl font-extrabold text-zinc-950 font-display tracking-tight tabular-nums">
+                {formatPrice(finalTotal)}
               </dd>
             </div>
           </dl>
-          <div className="mt-8 space-y-3">
+
+          <div className="space-y-3 pt-2">
             <button
               ref={checkoutBtnRef}
               onClick={goToCheckout}
-              className="flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-4 text-base font-bold text-white shadow-md hover:bg-emerald-600 hover:-translate-y-0.5 transition-all"
+              className="shimmer-btn flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-4 text-base font-bold text-zinc-950 shadow-md shadow-emerald-500/20 hover:bg-emerald-400 hover:scale-[1.01] active:scale-95 transition-all"
             >
-              {someSelected ? `Оформить выбранные (${selected.size})` : 'Перейти к оформлению'}
+              <span>{someSelected ? `Оформить выбранные (${selected.size})` : 'Перейти к оформлению'}</span>
               <ArrowRight className="ml-2 h-5 w-5" />
             </button>
             <p className="text-xs text-center text-zinc-400 font-medium">
-              Доступны способы оплаты: Картой, СБП, Долями
+              Доступны способы оплаты: СБП, Картой, Долями от Т-Банка
             </p>
           </div>
         </section>
@@ -324,22 +428,22 @@ export default function CartPage() {
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             exit={{ y: 100 }}
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-zinc-200 p-4 shadow-[0_-8px_30px_rgb(0,0,0,0.08)] backdrop-blur-lg"
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-zinc-200/80 p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl"
           >
             <div className="flex items-center justify-between max-w-md mx-auto gap-4">
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                   {displayQty} шт.{someSelected && ` (из ${getTotalItems()})`}
                 </span>
-                <span className="text-xl font-extrabold text-zinc-900 tracking-tight">
-                  {formatPrice(displayTotal)}
+                <span className="text-xl font-extrabold text-zinc-950 tracking-tight tabular-nums">
+                  {formatPrice(finalTotal)}
                 </span>
               </div>
               <button
                 onClick={goToCheckout}
-                className="flex-1 flex items-center justify-center rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                className="shimmer-btn flex-1 flex items-center justify-center rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-bold text-zinc-950 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
               >
-                Оформить
+                <span>Оформить</span>
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             </div>

@@ -10,6 +10,7 @@ import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { ordersService, type Order, type OutOfStockItem } from '../../lib/1c/orders';
 import { formatPrice } from '../../lib/utils';
+import { AddressForm } from '../../components/AddressForm';
 
 const DELIVERY_METHODS: Record<string, string> = {
   courier: 'КурьерскаяДоставка',
@@ -288,20 +289,14 @@ export default function CheckoutPage() {
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="address" className="block text-sm font-bold text-zinc-900 mb-2">
-                    Адрес
-                  </label>
-                  <textarea
-                    id="address"
-                    rows={2}
+                  <AddressForm
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className={inputClass}
-                    placeholder="г. Москва, ул. Ленина, д. 1, кв. 10"
+                    onChange={(newAddr) => setFormData((prev) => ({ ...prev, address: newAddr }))}
                   />
                   {user?.delivery_address && formData.address === user.delivery_address && (
-                    <p className="mt-1 text-xs text-zinc-400 font-medium">
-                      Адрес из профиля
+                    <p className="mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
+                      Используется сохраненный адрес из профиля
                     </p>
                   )}
                 </div>

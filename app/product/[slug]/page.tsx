@@ -240,66 +240,135 @@ export default function ProductPage() {
         {/* Buy block */}
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="lg:w-[340px] xl:w-[380px] shrink-0">
           <div className="sticky top-24 flex flex-col gap-6">
-            <div className="hidden lg:block bg-white rounded-3xl shadow-lg shadow-zinc-200/40 p-6 ring-1 ring-zinc-200/50">
+            <div className="hidden lg:block bg-white rounded-3xl shadow-xl shadow-zinc-200/50 p-6 sm:p-7 border border-zinc-200/80">
               <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-extrabold text-zinc-900 tracking-tight">{formatPrice(product.price)}</span>
-                {product.oldPrice && <span className="text-lg font-medium text-zinc-400 line-through">{formatPrice(product.oldPrice)}</span>}
-              </div>
-              <div className="mt-3">
-                {product.inStock > 0 ? (
-                  <span className="text-sm font-semibold text-emerald-600">В наличии: {product.inStock} шт.</span>
-                ) : (
-                  <span className="text-sm font-semibold text-rose-500">Нет в наличии</span>
+                <span className="text-3xl sm:text-4xl font-extrabold text-zinc-950 font-display tracking-tight tabular-nums">
+                  {formatPrice(product.price)}
+                </span>
+                {product.oldPrice && (
+                  <span className="text-base font-medium text-zinc-400 line-through tabular-nums">
+                    {formatPrice(product.oldPrice)}
+                  </span>
                 )}
               </div>
-              <div className="mt-8 flex items-center gap-3">
+
+              {/* Installment pill */}
+              <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span>или от {formatPrice(Math.round(product.price / 4))} / мес с Долями</span>
+              </div>
+
+              <div className="mt-4">
+                {product.inStock > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full ring-1 ring-emerald-500/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    В наличии на складе: {product.inStock} шт.
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full">
+                    Нет в наличии
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-6 flex items-center gap-3">
                 {product.inStock === 0 ? (
-                  <button disabled className="flex-1 bg-zinc-200 text-zinc-400 rounded-2xl h-14 font-bold text-base cursor-not-allowed">
+                  <button disabled className="flex-1 bg-zinc-100 text-zinc-400 rounded-2xl h-14 font-bold text-sm cursor-not-allowed">
                     Нет в наличии
                   </button>
                 ) : cartItem ? (
                   <>
-                    <button onClick={() => router.push('/cart')} className="flex-1 bg-emerald-500 text-white rounded-2xl h-14 flex items-center justify-center transition-all hover:bg-emerald-600 hover:shadow-md hover:-translate-y-0.5">
-                      <span className="font-bold text-base">В корзине</span>
+                    <button
+                      onClick={() => router.push('/cart')}
+                      className="shimmer-btn flex-1 bg-emerald-500 text-zinc-950 rounded-2xl h-14 flex items-center justify-center transition-all hover:bg-emerald-400 shadow-md shadow-emerald-500/20"
+                    >
+                      <span className="font-bold text-base">В корзине ({cartItem.quantity})</span>
                     </button>
-                    <div className="flex items-center bg-zinc-100 rounded-2xl h-14 px-1.5 ring-1 ring-zinc-200/50">
-                      <button onClick={() => { if (cartItem.quantity === 1) removeItem(product.id); else updateQuantity(product.id, cartItem.quantity - 1); }} className="w-10 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"><Minus size={18} /></button>
-                      <span className="w-8 text-center font-bold text-zinc-900">{cartItem.quantity}</span>
+                    <div className="flex items-center bg-zinc-100 rounded-2xl h-14 px-1.5 border border-zinc-200">
+                      <button
+                        onClick={() => {
+                          if (cartItem.quantity === 1) removeItem(product.id);
+                          else updateQuantity(product.id, cartItem.quantity - 1);
+                        }}
+                        className="w-10 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
+                        aria-label="Уменьшить"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-8 text-center font-extrabold text-zinc-950 tabular-nums">
+                        {cartItem.quantity}
+                      </span>
                       <button
                         onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
                         disabled={cartItem.quantity >= product.inStock}
                         className="w-10 h-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      ><Plus size={18} /></button>
+                        aria-label="Увеличить"
+                      >
+                        <Plus size={16} />
+                      </button>
                     </div>
                   </>
                 ) : (
-                  <button onClick={() => { addItem(product, 1); if (window.innerWidth >= 1024) toast.success('Товар добавлен в корзину'); }} className="flex-1 bg-emerald-500 text-white rounded-2xl h-14 font-bold text-base transition-all hover:bg-emerald-600 hover:shadow-md hover:-translate-y-0.5">
+                  <button
+                    onClick={() => {
+                      addItem(product, 1);
+                      if (window.innerWidth >= 1024) toast.success('Товар добавлен в корзину');
+                    }}
+                    className="shimmer-btn flex-1 bg-emerald-500 text-zinc-950 rounded-2xl h-14 font-bold text-base transition-all hover:bg-emerald-400 hover:scale-[1.01] shadow-md shadow-emerald-500/20 active:scale-95"
+                  >
                     В корзину
                   </button>
                 )}
-                <button onClick={handleToggleFavorite} className={`flex items-center justify-center w-14 h-14 rounded-2xl transition-all shrink-0 ${isFavorite ? 'bg-rose-50 text-rose-500 ring-1 ring-rose-200' : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100 hover:text-rose-400 ring-1 ring-zinc-200/50'}`}>
-                  <Heart size={24} className={isFavorite ? 'fill-current' : ''} />
+                <button
+                  onClick={handleToggleFavorite}
+                  className={`flex items-center justify-center w-14 h-14 rounded-2xl transition-all shrink-0 active:scale-90 ${
+                    isFavorite
+                      ? 'bg-rose-50 text-rose-500 ring-1 ring-rose-200 shadow-sm'
+                      : 'bg-zinc-50 text-zinc-400 hover:bg-zinc-100 hover:text-rose-500 border border-zinc-200/80'
+                  }`}
+                  aria-label="В избранное"
+                >
+                  <Heart size={22} className={isFavorite ? 'fill-current' : ''} />
                 </button>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm ring-1 ring-zinc-200/50 p-6 space-y-5">
-              <h3 className="font-bold text-zinc-900 text-lg">Доставка и возврат</h3>
-              <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center shrink-0"><MapPin size={20} className="text-zinc-500" /></div>
-                <div><p className="text-sm font-bold text-zinc-900">Москва</p><p className="text-xs font-medium text-zinc-500 mt-0.5">Со склада MarketMVP, Московская Область</p></div>
+            <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/80 p-6 space-y-4">
+              <h3 className="font-extrabold text-zinc-950 text-base font-display">
+                Доставка и гарантия
+              </h3>
+              <div className="flex gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
+                  <MapPin size={18} className="text-zinc-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-950">Москва и МО</p>
+                  <p className="text-xs font-normal text-zinc-400 mt-0.5">Прямая отгрузка со склада SmartMarket</p>
+                </div>
               </div>
-              <div className="flex justify-between items-center gap-4 pt-4 border-t border-zinc-100">
-                <div><p className="text-sm font-bold text-zinc-900">Курьером</p><p className="text-xs font-medium text-emerald-600 mt-0.5">Завтра</p></div>
-                <span className="text-xs font-bold text-zinc-900 bg-zinc-100 px-3 py-1.5 rounded-lg">149 ₽</span>
+              <div className="flex justify-between items-center gap-4 pt-3.5 border-t border-zinc-100">
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-zinc-900">Курьерская доставка</p>
+                  <p className="text-xs font-medium text-emerald-600 mt-0.5">Завтра, до двери</p>
+                </div>
+                <span className="text-xs font-bold text-zinc-900 bg-zinc-100 px-2.5 py-1 rounded-lg">149 ₽</span>
               </div>
-              <div className="flex justify-between items-center gap-4 pt-4 border-t border-zinc-100">
-                <div><p className="text-sm font-bold text-zinc-900">Пункты выдачи</p><p className="text-xs font-medium text-emerald-600 mt-0.5">Завтра</p></div>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg">Бесплатно</span>
+              <div className="flex justify-between items-center gap-4 pt-3.5 border-t border-zinc-100">
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-zinc-900">Пункты выдачи (СДЭК, Яндекс)</p>
+                  <p className="text-xs font-medium text-emerald-600 mt-0.5">1-2 дня</p>
+                </div>
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">Бесплатно</span>
               </div>
-              <div className="flex gap-4 pt-4 border-t border-zinc-100">
-                <div className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center shrink-0"><RotateCcw size={20} className="text-zinc-500" /></div>
-                <div className="flex items-center"><p className="text-sm font-bold text-zinc-900">Можно вернуть в течение 15 дней</p></div>
+              <div className="flex gap-3.5 pt-3.5 border-t border-zinc-100">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
+                  <RotateCcw size={18} className="text-zinc-600" />
+                </div>
+                <div className="flex items-center">
+                  <p className="text-xs sm:text-sm font-semibold text-zinc-800">
+                    Возврат 15 дней без объяснения причин
+                  </p>
+                </div>
               </div>
             </div>
           </div>

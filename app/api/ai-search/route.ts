@@ -11,19 +11,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Пробуем семантический поиск, таймаут 5 сек
+    // Пробуем семантический поиск, таймаут 12 сек
     try {
       const res = await fetch(`${AI_BASE_URL}/api/v1/products/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, top_k: limit }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(12000),
       });
       if (res.ok) {
         const data = await res.json();
-        return NextResponse.json({ ids: data.ids ?? [], source: 'semantic' }, {
-          headers: { 'Cache-Control': 'no-store' },
-        });
+        if (data.ids && data.ids.length > 0) {
+          return NextResponse.json({ ids: data.ids, source: 'semantic' }, {
+            headers: { 'Cache-Control': 'no-store' },
+          });
+        }
       }
     } catch {
       // таймаут или сервис недоступен — идём в fallback

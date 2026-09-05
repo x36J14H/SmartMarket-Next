@@ -46,6 +46,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ru">
       <head>
         <link rel="apple-touch-icon" href="/icons/maskable_icon_x192.png" />
+        {process.env.NODE_ENV === 'development' && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    for (var r of regs) { r.unregister(); }
+                  });
+                  if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                      for (var n of names) { caches.delete(n); }
+                    });
+                  }
+                }
+              `,
+            }}
+          />
+        )}
       </head>
       <body>
         <AuthProvider>

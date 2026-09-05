@@ -6,6 +6,7 @@ node_modules/
 .vscode/
 1с-api-docs/
 insomnia-collection.json
+*.tsbuildinfo
 
 # next-pwa generated service worker files
 public/sw.js
