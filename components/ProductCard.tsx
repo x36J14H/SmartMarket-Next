@@ -9,6 +9,8 @@ import { Product } from '../types';
 import { useCartStore } from '../store/cartStore';
 import { useFavoritesStore } from '../store/favoritesStore';
 import { formatPrice } from '../lib/utils';
+import { getProductImage, getProductFallbackImage } from '../lib/productMedia';
+import React, { useState, useEffect } from 'react';
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +23,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   viewMode = 'grid',
   aspectRatio = 'aspect-[4/5]',
 }) => {
+  const [imgSrc, setImgSrc] = useState(() =>
+    getProductImage(product.slug || product.id, product.name, product.imageUrl)
+  );
+
+  useEffect(() => {
+    setImgSrc(getProductImage(product.slug || product.id, product.name, product.imageUrl));
+  }, [product.imageUrl, product.slug, product.id, product.name]);
+
   const { addItem, updateQuantity, removeItem } = useCartStore();
   const cartItem = useCartStore((state) => state.items.find((item) => item.id === product.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
@@ -70,11 +80,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         }`}
       >
         <Image
-          src={product.imageUrl}
+          src={imgSrc}
           alt={product.name}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
           className="object-contain p-2 sm:p-3 transition-transform duration-700 ease-out group-hover:scale-108"
+          onError={() => setImgSrc(getProductFallbackImage(product.slug || product.id, product.name))}
         />
 
         {/* Discount Badge */}

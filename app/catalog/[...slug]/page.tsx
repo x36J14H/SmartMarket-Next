@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Filter, X, LayoutGrid, List, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../../../components/ProductCard';
 import { useProductsStore } from '../../../store/productsStore';
 import { fetchCatalog } from '../../../lib/1c/catalog';
@@ -170,7 +169,7 @@ function CatalogContent() {
             <button onClick={() => setMobileStep('categories')} className="md:hidden flex items-center gap-2 text-zinc-500 font-bold text-sm mb-6 hover:text-zinc-900 transition-colors">
               <ArrowLeft size={18} />Назад к категориям
             </button>
-            <motion.div key={activeCategoryObj?.name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div>
               <button
                 onClick={() => router.push(`/catalog/${activeCategoryObj.slug}`)}
                 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 mb-8 sm:mb-10 hover:text-emerald-600 transition-colors text-left"
@@ -202,7 +201,7 @@ function CatalogContent() {
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
@@ -421,15 +420,11 @@ function CatalogContent() {
             </div>
           ) : (
             <>
-              <motion.div layout className={`grid gap-3.5 sm:gap-6 ${viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-                <AnimatePresence>
-                  {products.map((product) => (
-                    <motion.div key={product.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }}>
-                      <ProductCard product={product} viewMode={viewMode} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
+              <div className={`grid gap-3.5 sm:gap-6 ${viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} viewMode={viewMode} />
+                ))}
+              </div>
 
               {totalPages > 1 && (
                 <div className="mt-12 flex items-center justify-center gap-2">

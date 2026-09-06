@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Search, X, Check, Building2, Loader2, Sparkles } from 'lucide-react';
+import { MapPin, Search, X, Check, Building2, Loader2 } from 'lucide-react';
 
 interface DaDataSuggestion {
   value: string;

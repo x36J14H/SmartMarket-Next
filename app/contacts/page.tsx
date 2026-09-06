@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Phone, Mail, Clock, Send, MessageSquare, Sparkles, CheckCircle2 } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ContactsPage() {
@@ -29,7 +29,7 @@ export default function ContactsPage() {
       <div className="max-w-[1440px] mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 mb-4">
-            <Sparkles size={12} className="text-emerald-500" />
+            <MessageSquare size={13} className="text-emerald-600" />
             <span>Служба заботы</span>
           </div>
           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-950 font-display">

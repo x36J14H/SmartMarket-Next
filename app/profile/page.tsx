@@ -750,7 +750,7 @@ function OrdersTab({
       {loading && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-400 gap-3">
           <Loader2 size={32} className="animate-spin text-emerald-500" />
-          <span className="text-sm font-medium">Загружаем заказы из 1С...</span>
+          <span className="text-sm font-medium">Загружаем ваши заказы...</span>
         </div>
       )}
 

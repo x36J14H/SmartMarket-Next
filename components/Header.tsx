@@ -1,6 +1,6 @@
 'use client';
 
-import { ShoppingCart, Menu, X, Heart, Sparkles, User as UserIcon } from 'lucide-react';
+import { ShoppingCart, Menu, X, Heart, User as UserIcon } from 'lucide-react';
 import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -73,20 +73,12 @@ export function Header() {
               href="/"
               className="flex items-center gap-2.5 text-xl font-extrabold tracking-tight text-zinc-950 group select-none"
             >
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-md transition-all duration-300 group-hover:scale-105 group-hover:shadow-glow-emerald group-hover:bg-zinc-900">
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-md transition-all duration-300 group-hover:scale-105 group-hover:bg-zinc-900">
                 <span className="text-emerald-400 font-display font-black text-lg">S</span>
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                </span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
                 <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-zinc-950">
                   Smart<span className="text-emerald-600">Market</span>
-                </span>
-                <span className="hidden lg:inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
-                  <Sparkles size={10} className="text-emerald-500" />
-                  AI
                 </span>
               </div>
             </Link>

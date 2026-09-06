@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Mail, Phone, MapPin, Sparkles, Send, ShieldCheck, CreditCard, ArrowUpRight } from 'lucide-react';
+import { Mail, Phone, MapPin, Tag, Send, ShieldCheck, CreditCard } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -14,20 +14,20 @@ export function Footer() {
       toast.error('Пожалуйста, укажите корректный email');
       return;
     }
-    toast.success('Спасибо за подписку на закрытые предложения SmartMarket VIP!');
+    toast.success('Спасибо за подписку на закрытые предложения и акции!');
     setEmail('');
   };
 
   return (
     <footer className="border-t border-zinc-200/80 bg-white/95 backdrop-blur-xl transition-colors">
-      {/* VIP Club Newsletter Banner */}
+      {/* Клуб привилегий и закрытых скидок */}
       <div className="border-b border-zinc-100 bg-zinc-50/70 py-10 sm:py-12">
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="max-w-xl text-center md:text-left">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20 mb-3">
-                <Sparkles size={12} className="text-emerald-500" />
-                <span>SmartMarket VIP</span>
+                <Tag size={12} className="text-emerald-600" />
+                <span>Клуб привилегий</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-extrabold text-zinc-950 font-display tracking-tight">
                 Узнавайте о закрытых распродажах первыми
@@ -75,8 +75,7 @@ export function Footer() {
             </Link>
 
             <p className="mt-4 text-sm text-zinc-500 leading-relaxed font-normal max-w-sm">
-              Премиальная торговая платформа без посредников и наценок. Прямая интеграция
-              с 1С складом, персональный ИИ-консультант и экспресс-доставка.
+              Премиальный интернет-магазин оригинальной электроники и гаджетов. Быстрая доставка по всей России, официальная гарантия и высокий уровень клиентского сервиса.
             </p>
 
             {/* Badges */}
@@ -145,8 +144,7 @@ export function Footer() {
                   }}
                   className="hover:text-emerald-600 transition-colors text-left flex items-center gap-1"
                 >
-                  <span>ИИ-Консультант</span>
-                  <Sparkles size={11} className="text-emerald-500" />
+                  <span>Чат-консультант</span>
                 </button>
               </li>
             </ul>
@@ -181,7 +179,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="mt-14 border-t border-zinc-100 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium text-zinc-400">
           <p>
-            &copy; {new Date().getFullYear()} SmartMarket. Все права защищены. Работает на базе 1С:Предприятие и технологий ИИ.
+            &copy; {new Date().getFullYear()} SmartMarket. Все права защищены. Интернет-магазин оригинальной электроники.
           </p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-zinc-900 transition-colors">

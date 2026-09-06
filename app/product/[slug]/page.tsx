@@ -385,7 +385,7 @@ export default function ProductPage() {
       </motion.div>
 
       {similarProducts.length > 0 && (
-        <motion.section initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mt-10 sm:mt-20 mb-10">
+        <section className="mt-10 sm:mt-20 mb-10">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-extrabold tracking-tight text-zinc-900">Похожие товары</h2>
             <Link href={`/catalog/${product.categorySlug}`} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors uppercase tracking-wider">Смотреть все</Link>
@@ -393,7 +393,7 @@ export default function ProductPage() {
           <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             {similarProducts.map((p) => <ProductCard key={p.id} product={p} aspectRatio="aspect-[6/5]" />)}
           </div>
-        </motion.section>
+        </section>
       )}
 
       {/* Mobile floating bar */}

@@ -6,7 +6,6 @@ import { Loader2, Search as SearchIcon, ChevronLeft, ChevronRight } from 'lucide
 import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../../components/ProductCard';
 import { searchProducts } from '../../services/aiSearch';
-import { fetchCatalog } from '../../lib/1c/catalog';
 import type { Product } from '../../types';
 
 const PAGE_SIZE = 20;
@@ -16,7 +15,6 @@ function SearchContent() {
   const router = useRouter();
   const query = searchParams.get('q') || '';
   const page = Number(searchParams.get('page') ?? '1');
-  const isAI = searchParams.get('ai') === '1';
 
   const [results, setResults] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -28,18 +26,13 @@ function SearchContent() {
     const controller = new AbortController();
     setIsLoading(true);
 
-    const doSearch = isAI
-      ? searchProducts(query, page, PAGE_SIZE, controller.signal)
-      : fetchCatalog({ q: query, page, limit: PAGE_SIZE }, controller.signal)
-          .then(({ products, total }) => ({ products, total }));
-
-    doSearch
+    searchProducts(query, page, PAGE_SIZE, controller.signal)
       .then(({ products, total: t }) => { setResults(products); setTotal(t); })
       .catch(() => {})
       .finally(() => setIsLoading(false));
 
     return () => controller.abort();
-  }, [query, page, isAI]);
+  }, [query, page]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -78,7 +71,7 @@ function SearchContent() {
           >
             <Loader2 className="mb-6 h-16 w-16 animate-spin text-emerald-500" />
             <p className="text-xl font-bold text-zinc-900">
-              {isAI ? 'AI ищет товары...' : 'Ищем в каталоге...'}
+              Поиск товаров в каталоге...
             </p>
           </motion.div>
         ) : !query.trim() ? (

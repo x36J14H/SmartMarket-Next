@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, Maximize2, Minimize2, Package, ArrowUpRight, Sparkles } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, Maximize2, Minimize2, Package, ArrowUpRight, ShoppingBag } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
+import { fetchProductBySlug } from '../lib/1c/catalog';
+import { getProductImage, formatChatPrice } from '../lib/productMedia';
+import type { Product } from '../types';
 
 type Message = { id: string; role: 'user' | 'model'; text: string };
 
@@ -23,8 +26,13 @@ type ParsedChatBlock =
  * и сгруппированные списки товаров для карточного отображения.
  */
 function parseMessageContent(text: string): ParsedChatBlock[] {
+  // Поддерживает:
+  // - [Название](/product/slug) 52,500 руб.
+  // - [Название](/product/uuid) — 52 500 ₽
+  // - [Название](/product/slug) : 52500 руб.
+  // - [Название](/product/slug) (52,500 руб.)
   const PRODUCT_REGEX =
-    /(?:^|\n)?\s*(?:[-*•]|\d+\.)?\s*\[([^\]]+)\]\((\/product\/[^)]+)\)(?:\s*(?:[—–\-:]|за|по цене|от)\s*([0-9\s]+(?:\s*(?:руб\.?|₽|USD|\$|EUR|€))?))?/gi;
+    /(?:^|\n)?\s*(?:[-*•]|\d+\.)?\s*\[([^\]]+)\]\((\/product\/[^)]+)\)(?:[ \t]*(?:[—–\-:•|,]|\(|\bза\b|\bпо цене\b|\bот\b|\bцена:?\b)?[ \t]*([0-9][0-9\s\u00A0\u202F.,]*(?:[ \t]*(?:руб(?:лей|\.)?|₽|USD|\$|EUR|€))?)\)?)?/gi;
 
   const matches: {
     start: number;
@@ -35,7 +43,10 @@ function parseMessageContent(text: string): ParsedChatBlock[] {
   let m: RegExpExecArray | null;
   while ((m = PRODUCT_REGEX.exec(text)) !== null) {
     const rawUrl = m[2].trim();
-    const productId = rawUrl.replace(/^\/product\//, '');
+    const productId = rawUrl.replace(/^\/product\//, '').trim();
+    const rawPrice = m[3]?.trim() || '';
+    const formattedPrice = formatChatPrice(rawPrice);
+
     matches.push({
       start: m.index,
       end: PRODUCT_REGEX.lastIndex,
@@ -43,7 +54,7 @@ function parseMessageContent(text: string): ParsedChatBlock[] {
         id: productId,
         name: m[1].trim(),
         url: rawUrl,
-        price: m[3]?.trim() || '',
+        price: formattedPrice,
       },
     });
   }
@@ -85,39 +96,94 @@ function parseMessageContent(text: string): ParsedChatBlock[] {
   return blocks;
 }
 
+// Кэш карточек товаров для мгновенного повторного рендера без лишних запросов
+const chatProductCache = new Map<string, Product>();
+
 function ProductChatItem({ item }: { item: ChatProductItem }) {
+  const [product, setProduct] = useState<Product | null>(
+    () => chatProductCache.get(item.id) || null
+  );
+  const [isImgLoaded, setIsImgLoaded] = useState(false);
+  const [hasImgError, setHasImgError] = useState(false);
+
+  useEffect(() => {
+    if (product || !item.id) return;
+
+    let isMounted = true;
+    const controller = new AbortController();
+
+    fetchProductBySlug(item.id, controller.signal)
+      .then((p) => {
+        if (!isMounted || !p) return;
+        chatProductCache.set(item.id, p);
+        if (p.id) chatProductCache.set(p.id, p);
+        if (p.slug) chatProductCache.set(p.slug, p);
+        setProduct(p);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [item.id, product]);
+
+  // Выбираем фото: проверяем 1С фото, при ошибке или отсутствии — качественный fallback
+  const raw1cImg = hasImgError ? undefined : product?.imageUrl;
+  const imageSrc = getProductImage(item.id, item.name, raw1cImg);
+
+  // Выбираем цену: либо из ответа чата, либо из полученной карточки 1С
+  const displayPrice = item.price || (product?.price ? formatChatPrice(product.price) : '');
+
   return (
     <Link
       href={item.url}
-      className="group relative flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500 hover:bg-emerald-50/10 hover:shadow-md active:translate-y-0"
+      className="group relative flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/90 bg-white p-2.5 sm:p-3 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500 hover:bg-emerald-50/10 hover:shadow-md active:translate-y-0"
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 transition-colors duration-200 group-hover:bg-emerald-500 group-hover:text-white">
-          <Package size={20} className="transition-transform duration-200 group-hover:scale-110" />
+        {/* Фотография товара */}
+        <div className="relative flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-50 border border-zinc-100 p-1 transition-colors group-hover:border-emerald-200 group-hover:bg-white">
+          {!isImgLoaded && (
+            <div className="absolute inset-0 animate-pulse bg-zinc-200/60 rounded-xl" />
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageSrc}
+            alt={item.name}
+            loading="lazy"
+            onLoad={() => setIsImgLoaded(true)}
+            onError={() => {
+              setHasImgError(true);
+              setIsImgLoaded(true);
+            }}
+            className={`h-full w-full object-contain transition-all duration-300 group-hover:scale-105 ${
+              isImgLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
         </div>
 
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="font-semibold text-zinc-900 text-sm leading-snug line-clamp-2 transition-colors group-hover:text-emerald-700">
+          <span className="font-semibold text-zinc-900 text-xs sm:text-sm leading-snug line-clamp-2 transition-colors group-hover:text-emerald-700">
             {item.name}
           </span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
-            В каталоге
+          <span className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-zinc-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block shrink-0" />
+            <span>В наличии</span>
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        {item.price ? (
+      <div className="flex items-center gap-2 shrink-0 ml-2">
+        {displayPrice ? (
           <span className="inline-flex items-center rounded-xl bg-emerald-50 px-2.5 py-1 text-xs sm:text-sm font-bold text-emerald-800 ring-1 ring-inset ring-emerald-600/20 whitespace-nowrap shadow-2xs">
-            {item.price}
+            {displayPrice}
           </span>
         ) : null}
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-all duration-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-all duration-200 group-hover:bg-emerald-600 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 shrink-0"
           aria-hidden="true"
         >
-          <ArrowUpRight size={16} />
+          <ArrowUpRight size={15} />
         </span>
       </div>
     </Link>
@@ -199,23 +265,19 @@ export function AIChatbot() {
 
   return (
     <>
-      {/* Floating Trigger Button with Glow */}
+      {/* Floating Trigger Button */}
       <button
         suppressHydrationWarning
         onClick={() => setIsOpen(true)}
-        className={`group fixed right-5 sm:right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-zinc-950 pl-4 pr-5 text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:bg-zinc-900 hover:shadow-glow-emerald focus:outline-none ring-1 ring-white/15 ${
+        className={`group fixed right-5 sm:right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-zinc-950 pl-4 pr-5 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-zinc-900 focus:outline-none ring-1 ring-white/15 ${
           isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'
         } ${bottomClass}`}
-        aria-label="Открыть чат с ИИ"
+        aria-label="Открыть чат с консультантом"
       >
-        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-sm">
+        <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
           <Bot size={18} />
-          <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
-          </span>
         </div>
-        <span className="font-bold text-xs sm:text-sm tracking-tight">ИИ-Консультант</span>
+        <span className="font-bold text-xs sm:text-sm tracking-tight">Консультант</span>
       </button>
 
       {/* Chat Window */}
@@ -230,21 +292,18 @@ export function AIChatbot() {
         {/* Header */}
         <div className="flex items-center justify-between bg-zinc-950 px-5 sm:px-6 py-4 text-white border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-sm ring-2 ring-white/10">
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm ring-2 ring-white/10">
               <Bot size={22} />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="font-extrabold text-sm sm:text-base tracking-tight font-display">
-                  SmartMarket Консультант
+                  Консультант SmartMarket
                 </h3>
-                <span className="rounded bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-bold text-emerald-400 ring-1 ring-emerald-500/30">
-                  AI
-                </span>
               </div>
               <p className="text-[11px] text-zinc-400 font-medium flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                ИИ-ассистент • Склад 1С онлайн
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                Онлайн • Служба заботы
               </p>
             </div>
           </div>
@@ -305,7 +364,7 @@ export function AIChatbot() {
                               {block.items.length > 1 && (
                                 <div className="flex items-center justify-between pb-1.5 pt-0.5 text-xs text-zinc-500 font-medium border-b border-zinc-100 mb-2">
                                   <span className="flex items-center gap-1.5 text-zinc-700 font-semibold">
-                                    <Sparkles size={14} className="text-emerald-500" />
+                                    <Package size={14} className="text-emerald-600" />
                                     Найденные товары ({block.items.length})
                                   </span>
                                   <span className="text-[11px] text-zinc-400 hidden sm:inline">Нажмите для перехода</span>
