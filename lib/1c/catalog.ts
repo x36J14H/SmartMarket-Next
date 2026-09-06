@@ -192,12 +192,31 @@ export async function fetchProductsByIds(
       signal,
     );
 
-    // Восстанавливаем порядок как в исходном массиве ids
-    const byId = new Map(items.map((item) => [item.id, item]));
-    return ids
-      .map((id) => byId.get(id))
-      .filter((item): item is ApiProductMini => !!item)
-      .map(mapApiProductMini);
+    if (items && items.length > 0) {
+      // Восстанавливаем порядок как в исходном массиве ids
+      const byId = new Map(items.map((item) => [item.id, item]));
+      return ids
+        .map((id) => byId.get(id))
+        .filter((item): item is ApiProductMini => !!item)
+        .map(mapApiProductMini);
+    }
+  } catch (err) {
+    console.warn('fetchProductsByIds batch request failed, trying fallback:', err);
+  }
+
+  // Fallback: загрузка каждого товара через GET /catalog/{id}
+  try {
+    const products = await Promise.all(
+      ids.slice(0, 50).map(async (id) => {
+        try {
+          const item = await onecClient.get<ApiProduct>(`catalog/${id}`, signal);
+          return item ? mapApiProduct(item) : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+    return products.filter((p): p is Product => p !== null);
   } catch {
     return [];
   }

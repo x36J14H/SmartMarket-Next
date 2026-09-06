@@ -11,6 +11,41 @@ const USERNAME = process.env.ONEC_USERNAME ?? 'Администратор';
 const PASSWORD = process.env.ONEC_PASSWORD ?? '';
 const BASIC_AUTH = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
 
+function normalizeDateStr(raw: unknown): string {
+  if (!raw) return '';
+  if (typeof raw === 'string') {
+    const match = /\/Date\((\d+)(?:[+-]\d+)?\)\//.exec(raw);
+    if (match) return new Date(parseInt(match[1], 10)).toISOString();
+  }
+  const d = new Date(raw as string | number);
+  return !isNaN(d.getTime()) ? d.toISOString() : String(raw);
+}
+
+function normalizeOrderItem(item: any): any {
+  if (!item || typeof item !== 'object') return item;
+  const rawTotal = item.total ?? item.total_amount ?? 0;
+  const total = Number(rawTotal);
+  return {
+    ...item,
+    total: isNaN(total) ? 0 : total,
+    total_amount: isNaN(total) ? 0 : total,
+    date: item.date ? normalizeDateStr(item.date) : item.date,
+  };
+}
+
+function normalizeOrdersData(data: any): any {
+  if (Array.isArray(data)) {
+    return data.map(normalizeOrderItem);
+  }
+  if (data && typeof data === 'object') {
+    if (data.order && typeof data.order === 'object') {
+      data.order = normalizeOrderItem(data.order);
+    }
+    return normalizeOrderItem(data);
+  }
+  return data;
+}
+
 type Context = { params: Promise<{ path?: string[] }> };
 
 async function proxy(req: NextRequest, { params }: Context): Promise<NextResponse> {
@@ -52,7 +87,8 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
     });
 
     const text = await res.text();
-    const data = text.trim() ? JSON.parse(text) : {};
+    const rawData = text.trim() ? JSON.parse(text) : {};
+    const data = res.ok ? normalizeOrdersData(rawData) : rawData;
     return NextResponse.json(data, { status: res.status });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unknown error';

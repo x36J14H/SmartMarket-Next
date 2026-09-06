@@ -176,7 +176,7 @@ export default function CheckoutPage() {
           transition={{ delay: 0.3 }}
           className="mt-4 max-w-lg text-lg font-medium text-zinc-500"
         >
-          Сумма заказа: {formatPrice(createdOrder.total)}
+          Сумма заказа: {formatPrice(createdOrder.total ?? createdOrder.total_amount ?? 0)}
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 10 }}

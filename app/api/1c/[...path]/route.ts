@@ -47,7 +47,18 @@ async function proxyRequest(req: NextRequest, path: string[]): Promise<NextRespo
       });
     }
 
-    const data = await res.json();
+    if (!res.ok) {
+      let errData: unknown = {};
+      try {
+        errData = await res.json();
+      } catch {
+        errData = { error: res.statusText || `HTTP ${res.status}` };
+      }
+      return NextResponse.json(errData, { status: res.status });
+    }
+
+    const text = await res.text();
+    const data = text.trim() ? JSON.parse(text) : {};
     return NextResponse.json(data, { status: res.status });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unknown error';

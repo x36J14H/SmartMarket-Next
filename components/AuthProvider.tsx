@@ -21,14 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Пользователь залогинен — загружаем данные с сервера
           syncCart();
           syncFavorites();
-        } else {
-          // Не залогинен — сбрасываем серверные данные
-          resetCart();
-          resetFavorites();
         }
       })
       .catch(() => setLoading(false));
-  }, [setUser, setLoading, syncCart, syncFavorites, resetCart, resetFavorites]);
+  }, [setUser, setLoading, syncCart, syncFavorites]);
 
   return <>{children}</>;
 }

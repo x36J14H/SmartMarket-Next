@@ -706,8 +706,19 @@ function OrdersTab({
   };
 
   const formatDate = (iso: string) => {
+    if (!iso) return '';
     try {
-      return new Date(iso).toLocaleDateString('ru-RU', {
+      let d: Date;
+      const match = typeof iso === 'string' && /\/Date\((\d+)(?:[+-]\d+)?\)\//.exec(iso);
+      if (match) {
+        d = new Date(parseInt(match[1], 10));
+      } else {
+        d = new Date(iso);
+      }
+      if (isNaN(d.getTime())) {
+        return iso;
+      }
+      return d.toLocaleDateString('ru-RU', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -814,7 +825,7 @@ function OrdersTab({
                       Сумма
                     </span>
                     <span className="text-base sm:text-lg font-black text-zinc-950 font-display tabular-nums">
-                      {formatPrice(order.total)}
+                      {formatPrice(order.total ?? order.total_amount ?? 0)}
                     </span>
                   </div>
                   <div
@@ -882,7 +893,7 @@ function OrdersTab({
                                 Итого к оплате
                               </span>
                               <span className="text-xl font-black text-zinc-950 font-display tabular-nums">
-                                {formatPrice(detail.total)}
+                                {formatPrice(detail.total ?? detail.total_amount ?? 0)}
                               </span>
                             </div>
                           </div>
@@ -926,7 +937,7 @@ function OrdersTab({
                         <div className="flex justify-between items-center p-4 bg-white rounded-2xl border border-zinc-200/80">
                           <span className="text-sm font-bold text-zinc-900">Сумма заказа</span>
                           <span className="text-lg font-black text-zinc-950 tabular-nums">
-                            {formatPrice(order.total)}
+                            {formatPrice(order.total ?? order.total_amount ?? 0)}
                           </span>
                         </div>
                       )}
