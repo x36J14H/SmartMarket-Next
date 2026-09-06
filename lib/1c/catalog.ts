@@ -7,6 +7,8 @@ const FALLBACK_IMAGE = '/service/image-unavailable.svg';
 
 function imageUrl(productId: string, fileId: string | undefined): string {
   if (!fileId) return FALLBACK_IMAGE;
+  // Если 1С вернул полный URL (http/https) — возвращаем как есть
+  if (fileId.startsWith('http://') || fileId.startsWith('https://')) return fileId;
   return `/api/1c/catalog/${productId}/images/${fileId}`;
 }
 
@@ -223,9 +225,7 @@ export async function fetchProductsByIds(
 }
 
 function mapApiProductMini(item: ApiProductMini): Product {
-  const imgUrl = item.imageUrl
-    ? `/api/1c/catalog/${item.id}/images/${item.imageUrl}`
-    : '/service/image-unavailable.svg';
+  const imgUrl = imageUrl(item.id, item.imageUrl || undefined);
   return {
     id: item.id,
     slug: item.slug || item.id,
