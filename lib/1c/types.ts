@@ -21,6 +21,12 @@ export interface ApiProduct {
   imageUrl: string;
   images: string[];
   characteristics: Record<string, string>;
+  reviewsCount?: number;
+  questionsCount?: number;
+  rating?: number;
+  isPurchased?: boolean;
+  canReview?: boolean;
+  hasReview?: boolean;
 }
 
 export interface ApiCategory {

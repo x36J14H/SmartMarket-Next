@@ -54,7 +54,7 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
   const cleanPath = path?.[0] === 'orders' ? path.slice(1) : (path ?? []);
   const subPath = cleanPath.length > 0 ? `/${cleanPath.join('/')}` : '';
 
-  const token = req.cookies.get('auth_token')?.value;
+  const token = req.headers.get('x-auth-token') ?? req.cookies.get('auth_token')?.value;
   if (!token) {
     return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
   }
@@ -87,7 +87,14 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
     });
 
     const text = await res.text();
-    const rawData = text.trim() ? JSON.parse(text) : {};
+    let rawData: any = {};
+    if (text.trim()) {
+      try {
+        rawData = JSON.parse(text);
+      } catch {
+        rawData = { error: text.trim() || `Ошибка сервера (HTTP ${res.status})` };
+      }
+    }
     const data = res.ok ? normalizeOrdersData(rawData) : rawData;
     return NextResponse.json(data, { status: res.status });
   } catch (e) {

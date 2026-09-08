@@ -1,22 +1,30 @@
 import { onecClient } from './client';
 import type { ApiAvailabilityItem, ApiCatalogResponse, ApiCategoriesResponse, ApiProduct, ApiProductMini, ApiProductsByIdsResponse, CatalogParams } from './types';
-import type { Product } from '../../types';
+import { Product } from '../../types';
 import type { Category } from '../../store/productsStore';
+import { getProductFallbackImage } from '../productMedia';
 
 const FALLBACK_IMAGE = '/service/image-unavailable.svg';
 
 function imageUrl(productId: string, fileId: string | undefined): string {
-  if (!fileId) return FALLBACK_IMAGE;
+  if (!fileId) return '';
   // Если 1С вернул полный URL (http/https) — возвращаем как есть
   if (fileId.startsWith('http://') || fileId.startsWith('https://')) return fileId;
   return `/api/1c/catalog/${productId}/images/${fileId}`;
 }
 
 export function mapApiProduct(item: ApiProduct): Product {
-  const mainImage = imageUrl(item.id, item.imageUrl);
+  const resolvedSlug = item.slug || item.article || item.id;
+  const rawImage = imageUrl(item.id, item.imageUrl);
+  const fallback = getProductFallbackImage(resolvedSlug, item.name);
+  const mainImage = rawImage || fallback;
+  const imagesList = item.images?.length
+    ? item.images.map((fid) => imageUrl(item.id, fid)).filter(Boolean)
+    : [];
+
   return {
     id: item.id,
-    slug: item.slug || item.article || item.id,
+    slug: resolvedSlug,
     name: item.name,
     category: item.category || '',
     categorySlug: item.categorySlug || '',
@@ -32,14 +40,18 @@ export function mapApiProduct(item: ApiProduct): Product {
     description: item.description || '',
     shortDescription: item.shortDescription || item.description || '',
     imageUrl: mainImage,
-    images: item.images?.length
-      ? item.images.map((fid) => imageUrl(item.id, fid))
-      : [mainImage],
+    images: imagesList.length > 0 ? imagesList : [mainImage],
     characteristics: {
       ...(item.article ? { Артикул: item.article } : {}),
       ...(item.characteristics || {}),
     },
     sku: item.article || item.id,
+    reviewsCount: item.reviewsCount ?? 0,
+    questionsCount: item.questionsCount ?? 0,
+    rating: item.rating ?? 0,
+    isPurchased: Boolean(item.isPurchased),
+    canReview: Boolean(item.canReview),
+    hasReview: Boolean(item.hasReview),
   };
 }
 
@@ -105,8 +117,12 @@ export async function fetchProductBySlug(slug: string, signal?: AbortSignal): Pr
   try {
     if (UUID_RE.test(cleanSlug)) {
       // Это UUID — идём напрямую в GET /catalog/{id}
-      const item = await onecClient.get<ApiProduct>(`catalog/${cleanSlug}`, signal);
-      if (item?.id) return mapApiProduct(item);
+      try {
+        const item = await onecClient.get<ApiProduct>(`catalog/${cleanSlug}`, signal);
+        if (item?.id) return mapApiProduct(item);
+      } catch (e: any) {
+        if (!e?.message?.includes('404')) throw e;
+      }
     }
     const item = await onecClient.get<ApiProduct>(`catalog/slug/${encodeURIComponent(cleanSlug)}`, signal);
     if (item?.id) return mapApiProduct(item);
@@ -115,12 +131,17 @@ export async function fetchProductBySlug(slug: string, signal?: AbortSignal): Pr
     try {
       const fallbackItem = await onecClient.get<ApiProduct>(`catalog/${cleanSlug}`, signal);
       if (fallbackItem?.id) return mapApiProduct(fallbackItem);
-    } catch {}
+    } catch (e: any) {
+      if (!e?.message?.includes('404')) throw e;
+    }
 
     return null;
   } catch (e: any) {
     if (signal?.aborted || e?.name === 'AbortError') return null;
-    return null;
+    // Если 404 — товар действительно отсутствует
+    if (e?.message?.includes('404')) return null;
+    // При ошибке сервера (500, 502, network offline) выбрасываем ошибку для UI
+    throw e;
   }
 }
 

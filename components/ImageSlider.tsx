@@ -9,9 +9,10 @@ interface ImageSliderProps {
   activeIndex: number;
   onIndexChange: (idx: number) => void;
   alt: string;
+  fallbackSrc?: string;
 }
 
-export function ImageSlider({ images, activeIndex, onIndexChange, alt }: ImageSliderProps) {
+export function ImageSlider({ images, activeIndex, onIndexChange, alt, fallbackSrc }: ImageSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
 
@@ -109,6 +110,14 @@ export function ImageSlider({ images, activeIndex, onIndexChange, alt }: ImageSl
               className="object-contain"
               draggable={false}
               priority={idx === 0}
+              onError={(e) => {
+                if (fallbackSrc) {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (target.src !== fallbackSrc) {
+                    target.src = fallbackSrc;
+                  }
+                }
+              }}
             />
           </div>
         ))}

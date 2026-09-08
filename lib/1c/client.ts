@@ -7,7 +7,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     signal: init?.signal ?? AbortSignal.timeout(15000),
   });
-  if (!res.ok) throw new Error(`1C API error ${res.status}: ${path}`);
+  if (!res.ok) {
+    let details = '';
+    try {
+      const data = await res.json();
+      if (data?.error) details = `: ${data.error}`;
+      else if (data?.message) details = `: ${data.message}`;
+    } catch {
+      // ignore
+    }
+    throw new Error(`1C API error ${res.status}${details || `: ${path}`}`);
+  }
   return res.json() as Promise<T>;
 }
 

@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingCart, Heart, Minus, Plus, Check } from 'lucide-react';
+import { ShoppingCart, Heart, Minus, Plus, Check, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product } from '../types';
 import { useCartStore } from '../store/cartStore';
 import { useFavoritesStore } from '../store/favoritesStore';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, pluralizeReviews } from '../lib/utils';
 import { getProductImage, getProductFallbackImage } from '../lib/productMedia';
 import React, { useState, useEffect } from 'react';
 
@@ -119,6 +119,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <h3 className="mt-1 font-semibold leading-snug text-zinc-950 group-hover:text-emerald-600 transition-colors text-base sm:text-lg line-clamp-2">
               {product.name}
             </h3>
+            {product.reviewsCount !== undefined && product.reviewsCount > 0 && (
+              <div className="mt-1.5 flex items-center gap-2 text-xs text-zinc-500">
+                <div className="flex items-center text-amber-500">
+                  <Star size={13} className="fill-current" />
+                  <span className="ml-1 font-bold text-zinc-800">{product.rating ? product.rating.toFixed(1) : '0.0'}</span>
+                </div>
+                <span className="text-zinc-300">•</span>
+                <span className="text-zinc-400">{pluralizeReviews(product.reviewsCount)}</span>
+              </div>
+            )}
             <p className="mt-2 text-sm text-zinc-500 line-clamp-2 hidden sm:block font-normal leading-relaxed">
               {product.shortDescription}
             </p>
@@ -178,6 +188,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <h3 className="mt-1 line-clamp-2 text-xs sm:text-sm font-semibold leading-snug text-zinc-900 group-hover:text-emerald-600 transition-colors">
             {product.name}
           </h3>
+
+          {product.reviewsCount !== undefined && product.reviewsCount > 0 && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-zinc-500">
+              <div className="flex items-center text-amber-500">
+                <Star size={12} className="fill-current" />
+                <span className="ml-1 font-bold text-zinc-800 text-[11px]">
+                  {product.rating ? product.rating.toFixed(1) : '0.0'}
+                </span>
+              </div>
+              <span className="text-zinc-300">•</span>
+              <span className="text-[11px] text-zinc-400">{pluralizeReviews(product.reviewsCount)}</span>
+            </div>
+          )}
 
           <div className="mt-auto pt-3 sm:pt-4">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">

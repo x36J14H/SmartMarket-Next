@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   User,
   Settings,
@@ -29,15 +30,32 @@ import {
   ShieldCheck,
   Mail,
   ArrowRight,
+  Star,
+  MessageSquare,
+  HelpCircle,
+  Sparkles,
+  X,
+  ExternalLink,
+  RefreshCw,
+  ThumbsUp,
+  MessageCircle,
 } from 'lucide-react';
-import { formatPrice } from '../../lib/utils';
+import toast from 'react-hot-toast';
+import { formatPrice, pluralizeReviews, pluralizeQuestions } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useFavoritesStore } from '../../store/favoritesStore';
 import { useRouter } from 'next/navigation';
 import { authService } from '../../lib/1c/auth';
-import { personalService } from '../../lib/1c/personal';
+import {
+  personalService,
+  normalizePersonalImageUrl,
+  type PurchasedProduct,
+  type UserReviewItem,
+  type UserQuestionItem,
+} from '../../lib/1c/personal';
+import { reviewsService } from '../../lib/1c/reviews';
 import { ordersService, type Order } from '../../lib/1c/orders';
 import { PasswordStrengthMeter } from '../../components/PasswordStrengthMeter';
 import { checkPasswordStrength } from '../../lib/passwordStrength';
@@ -49,6 +67,17 @@ export default function ProfilePage() {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+
+  const [purchases, setPurchases] = useState<PurchasedProduct[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(true);
+
+  const [reviews, setReviews] = useState<UserReviewItem[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  const [questions, setQuestions] = useState<UserQuestionItem[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(true);
+
+  const [reviewModalProduct, setReviewModalProduct] = useState<PurchasedProduct | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const { user, logout } = useAuthStore();
   const router = useRouter();
@@ -81,14 +110,159 @@ export default function ProfilePage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, [activeTab]);
 
-  // Загружаем заказы на верхнем уровне для счетчика в меню и шапке
-  useEffect(() => {
+  const loadData = useCallback(() => {
     ordersService
       .getOrders()
       .then(setOrders)
       .catch(() => {})
       .finally(() => setOrdersLoading(false));
+
+    personalService
+      .getPurchasedProducts()
+      .then((items) => {
+        setPurchases(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        setPurchases([]);
+      })
+      .finally(() => setPurchasesLoading(false));
+
+    personalService
+      .getMyReviews()
+      .then((items) => {
+        setReviews(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        setReviews([]);
+      })
+      .finally(() => setReviewsLoading(false));
+
+    personalService
+      .getMyQuestions()
+      .then((items) => {
+        setQuestions(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        setQuestions([]);
+      })
+      .finally(() => setQuestionsLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Синхронизация и дополнение купленных товаров данными из отзывов и заказов
+  useEffect(() => {
+    if (purchasesLoading || reviewsLoading) return;
+
+    setPurchases((prevPurchases) => {
+      const updated = [...prevPurchases];
+      let changed = false;
+
+      // 1. Помечаем hasReview для товаров, по которым уже есть отзывы
+      const reviewsByProduct = new Map<string, typeof reviews[0]>();
+      reviews.forEach((r) => {
+        if (r.productId) reviewsByProduct.set(r.productId.toLowerCase(), r);
+        if (r.productSlug) reviewsByProduct.set(r.productSlug.toLowerCase(), r);
+        if (r.productName) reviewsByProduct.set(r.productName.trim().toLowerCase(), r);
+      });
+
+      const findReview = (id?: string, slug?: string, name?: string) => {
+        if (id && reviewsByProduct.has(id.toLowerCase())) return reviewsByProduct.get(id.toLowerCase());
+        if (slug && reviewsByProduct.has(slug.toLowerCase())) return reviewsByProduct.get(slug.toLowerCase());
+        if (name && reviewsByProduct.has(name.trim().toLowerCase())) return reviewsByProduct.get(name.trim().toLowerCase());
+        return undefined;
+      };
+
+      updated.forEach((p, idx) => {
+        const rev = findReview(p.id, p.slug, p.name);
+        if (rev && !p.hasReview) {
+          updated[idx] = {
+            ...p,
+            hasReview: true,
+            reviewId: rev.id,
+            reviewRating: rev.rating,
+            reviewText: rev.text,
+          };
+          changed = true;
+        }
+      });
+
+      // 2. Если есть отзывы на товары, которых вообще нет в списке purchases, добавляем их
+      const existingKeys = new Set<string>();
+      updated.forEach((p) => {
+        if (p.id) existingKeys.add(p.id.toLowerCase());
+        if (p.slug) existingKeys.add(p.slug.toLowerCase());
+        if (p.name) existingKeys.add(p.name.trim().toLowerCase());
+      });
+
+      reviews.forEach((rev) => {
+        const keyId = rev.productId ? rev.productId.toLowerCase() : '';
+        const keyName = rev.productName ? rev.productName.trim().toLowerCase() : '';
+        const keySlug = rev.productSlug ? rev.productSlug.toLowerCase() : '';
+        const alreadyExists = (keyId && existingKeys.has(keyId)) ||
+                              (keyName && existingKeys.has(keyName)) ||
+                              (keySlug && existingKeys.has(keySlug));
+
+        if (!alreadyExists && (rev.productId || rev.productName)) {
+          if (keyId) existingKeys.add(keyId);
+          if (keyName) existingKeys.add(keyName);
+          if (keySlug) existingKeys.add(keySlug);
+          updated.push({
+            id: rev.productId || `rev-prod-${rev.id}`,
+            name: rev.productName || 'Товар',
+            article: '',
+            slug: rev.productSlug || rev.productId || '',
+            price: 0,
+            totalQty: 1,
+            orderDate: rev.date || new Date().toISOString(),
+            orderNumber: '',
+            imageUrl: rev.productImageUrl || '',
+            hasReview: true,
+            reviewId: rev.id,
+            reviewRating: rev.rating,
+            reviewText: rev.text,
+          });
+          changed = true;
+        }
+      });
+
+      // 3. Fallback: извлечение из заказов, если в них присутствуют позиции items
+      orders.forEach((ord) => {
+        if (ord.status === 'Отменён') return;
+        ord.items?.forEach((item) => {
+          const itemId = item.id ? item.id.toLowerCase() : '';
+          const itemName = item.name ? item.name.trim().toLowerCase() : '';
+          const alreadyExists = (itemId && existingKeys.has(itemId)) || (itemName && existingKeys.has(itemName));
+
+          if (!alreadyExists && (item.id || item.name)) {
+            if (itemId) existingKeys.add(itemId);
+            if (itemName) existingKeys.add(itemName);
+            const rev = findReview(item.id, undefined, item.name);
+            updated.push({
+              id: item.id || `order-item-${ord.id}`,
+              name: item.name,
+              article: '',
+              slug: item.id,
+              price: item.price,
+              totalQty: item.qty,
+              orderDate: ord.date,
+              orderNumber: ord.number,
+              imageUrl: '',
+              hasReview: !!rev,
+              reviewId: rev?.id,
+              reviewRating: rev?.rating,
+              reviewText: rev?.text,
+            });
+            changed = true;
+          }
+        });
+      });
+
+      return changed ? updated : prevPurchases;
+    });
+  }, [purchasesLoading, reviewsLoading, reviews, orders]);
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -142,6 +316,27 @@ export default function ProfilePage() {
       description: 'История покупок и отслеживание',
     },
     {
+      id: 'purchases',
+      label: 'Купленные товары',
+      icon: ShoppingBag,
+      badge: purchases.length > 0 ? String(purchases.length) : null,
+      description: 'Все купленные вами товары',
+    },
+    {
+      id: 'reviews',
+      label: 'Мои отзывы',
+      icon: Star,
+      badge: reviews.length > 0 ? String(reviews.length) : null,
+      description: 'Оценки, отзывы и ответы магазина',
+    },
+    {
+      id: 'questions',
+      label: 'Вопросы к товарам',
+      icon: MessageSquare,
+      badge: questions.length > 0 ? String(questions.length) : null,
+      description: 'Ваши вопросы и ответы поддержки',
+    },
+    {
       id: 'settings',
       label: 'Безопасность',
       icon: Shield,
@@ -164,6 +359,33 @@ export default function ProfilePage() {
             setExpandedOrder={setExpandedOrder}
           />
         );
+      case 'purchases':
+        return (
+          <PurchasesTab
+            purchases={purchases}
+            loading={purchasesLoading}
+            onOpenReview={(prod) => setReviewModalProduct(prod)}
+            onGoToReviews={() => setActiveTab('reviews')}
+          />
+        );
+      case 'reviews':
+        return (
+          <ReviewsTab
+            reviews={reviews}
+            loading={reviewsLoading}
+            unreviewedPurchases={purchases.filter((p) => !p.hasReview)}
+            onOpenReview={(prod) => setReviewModalProduct(prod)}
+            onGoToPurchases={() => setActiveTab('purchases')}
+          />
+        );
+      case 'questions':
+        return (
+          <QuestionsTab
+            questions={questions}
+            loading={questionsLoading}
+            userInitial={userInitial}
+          />
+        );
       case 'settings':
         return <SettingsTab />;
       default:
@@ -178,7 +400,7 @@ export default function ProfilePage() {
       {/* Top Banner & User Profile Hero */}
       <div className="border-b border-zinc-200/70 bg-white">
         <div className="mx-auto max-w-[1400px] px-4 py-8 sm:py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             {/* User Identity Info */}
             <div className="flex items-center gap-4 sm:gap-5">
               <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-2xl sm:text-3xl font-black text-white shadow-lg shadow-emerald-500/20 ring-4 ring-white">
@@ -205,36 +427,90 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Quick Summary Cards */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-4 max-w-md w-full self-stretch md:self-auto">
-              {/* Orders Stat */}
+            {/* Quick Summary Cards (6 responsive metrics) */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5 max-w-2xl w-full self-stretch lg:self-auto">
+              {/* Orders */}
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border transition-all text-center ${
+                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
                   activeTab === 'orders'
-                    ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
+                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
                     : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
                 }`}
               >
                 <div className="flex items-center gap-1 text-zinc-500 mb-1">
-                  <Package size={14} />
-                  <span className="text-[11px] font-semibold">Заказы</span>
+                  <Package size={13} />
+                  <span className="text-[10px] sm:text-[11px] font-bold">Заказы</span>
                 </div>
-                <span className="text-lg sm:text-2xl font-black text-zinc-950 font-display tabular-nums">
+                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
                   {orders.length}
+                </span>
+              </button>
+
+              {/* Purchases */}
+              <button
+                onClick={() => setActiveTab('purchases')}
+                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
+                  activeTab === 'purchases'
+                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
+                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
+                }`}
+              >
+                <div className="flex items-center gap-1 text-zinc-500 mb-1">
+                  <ShoppingBag size={13} />
+                  <span className="text-[10px] sm:text-[11px] font-bold">Покупки</span>
+                </div>
+                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
+                  {purchases.length}
+                </span>
+              </button>
+
+              {/* Reviews */}
+              <button
+                onClick={() => setActiveTab('reviews')}
+                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
+                  activeTab === 'reviews'
+                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
+                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
+                }`}
+              >
+                <div className="flex items-center gap-1 text-zinc-500 mb-1">
+                  <Star size={13} />
+                  <span className="text-[10px] sm:text-[11px] font-bold">Отзывы</span>
+                </div>
+                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
+                  {reviews.length}
+                </span>
+              </button>
+
+              {/* Questions */}
+              <button
+                onClick={() => setActiveTab('questions')}
+                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
+                  activeTab === 'questions'
+                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
+                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
+                }`}
+              >
+                <div className="flex items-center gap-1 text-zinc-500 mb-1">
+                  <MessageSquare size={13} />
+                  <span className="text-[10px] sm:text-[11px] font-bold">Вопросы</span>
+                </div>
+                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
+                  {questions.length}
                 </span>
               </button>
 
               {/* Favorites Stat */}
               <Link
                 href="/favorites"
-                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all text-center group"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all text-center group"
               >
                 <div className="flex items-center gap-1 text-zinc-500 mb-1 group-hover:text-rose-500 transition-colors">
-                  <Heart size={14} />
-                  <span className="text-[11px] font-semibold">Избранное</span>
+                  <Heart size={13} />
+                  <span className="text-[10px] sm:text-[11px] font-bold">Избранное</span>
                 </div>
-                <span className="text-lg sm:text-2xl font-black text-zinc-950 font-display tabular-nums group-hover:text-rose-600 transition-colors">
+                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums group-hover:text-rose-600 transition-colors">
                   {favoritesCount}
                 </span>
               </Link>
@@ -242,13 +518,13 @@ export default function ProfilePage() {
               {/* Cart Stat */}
               <Link
                 href="/cart"
-                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all text-center group"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all text-center group"
               >
                 <div className="flex items-center gap-1 text-zinc-500 mb-1 group-hover:text-emerald-600 transition-colors">
-                  <ShoppingBag size={14} />
-                  <span className="text-[11px] font-semibold">Корзина</span>
+                  <ShoppingBag size={13} />
+                  <span className="text-[10px] sm:text-[11px] font-bold">Корзина</span>
                 </div>
-                <span className="text-lg sm:text-2xl font-black text-zinc-950 font-display tabular-nums group-hover:text-emerald-600 transition-colors">
+                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums group-hover:text-emerald-600 transition-colors">
                   {cartItemsCount}
                 </span>
               </Link>
@@ -399,6 +675,20 @@ export default function ProfilePage() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Review Modal Dialog */}
+      <AnimatePresence>
+        {reviewModalProduct && (
+          <ReviewModal
+            product={reviewModalProduct}
+            onClose={() => setReviewModalProduct(null)}
+            onSuccess={() => {
+              setReviewModalProduct(null);
+              loadData();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1146,6 +1436,907 @@ function PasswordField({
         </button>
       </div>
       {hint && <p className="mt-1 text-xs text-zinc-400 font-medium">{hint}</p>}
+    </div>
+  );
+}
+
+function ProductThumbnail({
+  src,
+  productId,
+  alt,
+  iconSize = 20,
+  hoverEffect = false,
+}: {
+  src?: string | null;
+  productId: string;
+  alt: string;
+  iconSize?: number;
+  hoverEffect?: boolean;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const resolved = normalizePersonalImageUrl(productId, src);
+
+  if (!resolved || hasError) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-zinc-300">
+        <ShoppingBag size={iconSize} />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={resolved}
+      alt={alt}
+      fill
+      sizes="(max-width: 768px) 80px, 120px"
+      className={`object-cover ${hoverEffect ? 'object-center group-hover:scale-105 transition-transform duration-300' : ''}`}
+      onError={() => setHasError(true)}
+    />
+  );
+}
+
+/* ========================================================================= */
+/*                         ВКЛАДКА: КУПЛЕННЫЕ ТОВАРЫ                         */
+/* ========================================================================= */
+
+interface PurchasesTabProps {
+  purchases: PurchasedProduct[];
+  loading: boolean;
+  onOpenReview: (product: PurchasedProduct) => void;
+  onGoToReviews: () => void;
+}
+
+function PurchasesTab({
+  purchases,
+  loading,
+  onOpenReview,
+  onGoToReviews,
+}: PurchasesTabProps) {
+  const [addingId, setAddingId] = useState<string | null>(null);
+
+  const handleBuyAgain = async (product: PurchasedProduct) => {
+    setAddingId(product.id);
+    try {
+      await useCartStore.getState().addItem(
+        {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          slug: product.slug || product.id,
+          images: product.imageUrl ? [product.imageUrl] : [],
+          inStock: 99,
+          rating: 5,
+          reviewsCount: 0,
+        } as any,
+        1
+      );
+      toast.success('Товар добавлен в корзину');
+    } catch {
+      toast.error('Не удалось добавить товар в корзину');
+    } finally {
+      setAddingId(null);
+    }
+  };
+
+  const unreviewedCount = purchases.filter((p) => !p.hasReview).length;
+
+  return (
+    <div className="space-y-6">
+      {/* Tab Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-xl font-extrabold text-zinc-950 font-display">
+              Купленные товары
+            </h3>
+            <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+              {purchases.length}
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-1">
+            Все товары из ваших завершённых заказов. Повторяйте покупки и делитесь отзывами.
+          </p>
+        </div>
+
+        {unreviewedCount > 0 && (
+          <button
+            onClick={onGoToReviews}
+            className="inline-flex items-center gap-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100/80 px-3.5 py-2 rounded-xl border border-amber-200/70 transition-all self-start sm:self-auto active:scale-95"
+          >
+            <Sparkles size={14} className="text-amber-500" />
+            <span>Оценить покупки ({unreviewedCount})</span>
+          </button>
+        )}
+      </div>
+
+      {/* Loading Skeletons */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-3xl border border-zinc-200/70 p-4 bg-zinc-50/50 space-y-3"
+            >
+              <div className="flex gap-3">
+                <div className="h-20 w-20 rounded-2xl bg-zinc-200" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-zinc-200 rounded w-3/4" />
+                  <div className="h-3 bg-zinc-200 rounded w-1/2" />
+                </div>
+              </div>
+              <div className="h-10 bg-zinc-200 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      ) : purchases.length === 0 ? (
+        /* Empty State */
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-zinc-100 text-zinc-400 mb-4">
+            <ShoppingBag size={36} />
+          </div>
+          <h4 className="text-lg font-extrabold text-zinc-950 font-display">
+            У вас пока нет купленных товаров
+          </h4>
+          <p className="text-xs sm:text-sm text-zinc-500 max-w-md mt-1.5 leading-relaxed">
+            Здесь появятся все товары, которые вы закажете и получите. Вы сможете быстро повторить покупку или оставить отзыв о качестве.
+          </p>
+          <Link
+            href="/catalog"
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-zinc-800 active:scale-95 transition-all"
+          >
+            <span>Перейти в каталог</span>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      ) : (
+        /* Purchases Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {purchases.map((product) => {
+            const isAdding = addingId === product.id;
+            return (
+              <div
+                key={product.id}
+                className="group flex flex-col justify-between rounded-3xl border border-zinc-200/80 bg-white p-4 sm:p-5 hover:border-zinc-300 hover:shadow-md transition-all"
+              >
+                <div>
+                  <div className="flex gap-3.5 items-start">
+                    {/* Image / Thumbnail */}
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-zinc-100 border border-zinc-200/60">
+                      <ProductThumbnail
+                        src={product.imageUrl}
+                        productId={product.id}
+                        alt={product.name}
+                        iconSize={24}
+                        hoverEffect
+                      />
+                    </div>
+
+                    {/* Meta info */}
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/product/${product.slug || product.id}`}
+                        className="block text-sm font-bold text-zinc-900 hover:text-emerald-600 transition-colors line-clamp-2 leading-snug"
+                        title={product.name}
+                      >
+                        {product.name}
+                      </Link>
+
+                      {product.article && (
+                        <p className="text-[11px] font-medium text-zinc-400 mt-1">
+                          Арт. {product.article}
+                        </p>
+                      )}
+
+                      {(product.orderNumber || product.orderDate) && (
+                        <p className="text-[11px] text-zinc-400 mt-0.5 truncate">
+                          {product.orderNumber ? `Заказ №${product.orderNumber}` : ''}
+                          {product.orderDate
+                            ? ` • ${new Date(product.orderDate).toLocaleDateString('ru-RU')}`
+                            : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quantity summary */}
+                  <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2.5">
+                    {product.totalQty > 0 ? (
+                      <span className="text-xs font-semibold text-zinc-500">
+                        Куплено: {product.totalQty} шт.
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-zinc-500">Товар получен</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Card Action Buttons */}
+                <div className="mt-4 flex flex-col gap-2 pt-1">
+                  {/* Review Button / Status */}
+                  {product.hasReview ? (
+                    <div className="flex items-center justify-between rounded-xl bg-emerald-50/70 border border-emerald-200/60 px-3 py-2 text-xs font-bold text-emerald-700">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                        <span>Отзыв оставлен</span>
+                      </div>
+                      {product.reviewRating && (
+                        <div className="flex items-center gap-1 text-amber-500 font-extrabold">
+                          <Star size={13} className="fill-amber-400" />
+                          <span>{product.reviewRating}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onOpenReview(product)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300/60 px-3 py-2 text-xs font-bold transition-all active:scale-98"
+                    >
+                      <Star size={14} className="fill-amber-400 text-amber-500" />
+                      <span>Оставить отзыв</span>
+                    </button>
+                  )}
+
+                  {/* Buy Again Button */}
+                  <button
+                    onClick={() => handleBuyAgain(product)}
+                    disabled={isAdding}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-2 text-xs font-bold shadow-xs transition-all active:scale-98 disabled:opacity-50"
+                  >
+                    {isAdding ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <ShoppingBag size={14} />
+                    )}
+                    <span>Купить снова</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================================================================= */
+/*                         ВКЛАДКА: МОИ ОТЗЫВЫ                               */
+/* ========================================================================= */
+
+interface ReviewsTabProps {
+  reviews: UserReviewItem[];
+  loading: boolean;
+  unreviewedPurchases: PurchasedProduct[];
+  onOpenReview: (product: PurchasedProduct) => void;
+  onGoToPurchases: () => void;
+}
+
+function ReviewsTab({
+  reviews,
+  loading,
+  unreviewedPurchases,
+  onOpenReview,
+  onGoToPurchases,
+}: ReviewsTabProps) {
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-xl font-extrabold text-zinc-950 font-display">
+              Мои отзывы
+            </h3>
+            <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+              {reviews.length}
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-1">
+            Ваши отзывы и оценки о товарах, а также официальные ответы магазина
+          </p>
+        </div>
+      </div>
+
+      {/* PROMPT BANNER: Предложение оставить отзывы на купленные товары */}
+      {unreviewedPurchases.length > 0 && (
+        <div className="relative overflow-hidden rounded-3xl border border-amber-300/80 bg-gradient-to-br from-amber-500/10 via-amber-100/30 to-orange-50/20 p-5 sm:p-6 shadow-xs">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-white shadow-md shadow-amber-500/20">
+              <Sparkles size={24} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-base sm:text-lg font-bold text-zinc-950 font-display">
+                Оцените купленные товары
+              </h4>
+              <p className="text-xs sm:text-sm text-zinc-600 mt-1 leading-relaxed">
+                Вы недавно приобрели {unreviewedPurchases.length} {unreviewedPurchases.length === 1 ? 'товар' : 'товара'}, но ещё не оставили отзыв. Расскажите о впечатлениях — это поможет другим покупателям определиться с выбором!
+              </p>
+
+              {/* Unreviewed items horizontal carousel / list */}
+              <div className="mt-4 flex gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar">
+                {unreviewedPurchases.map((prod) => (
+                  <div
+                    key={prod.id}
+                    className="flex shrink-0 items-center gap-3 rounded-2xl border border-amber-200/80 bg-white/95 backdrop-blur-xs p-2.5 shadow-xs max-w-xs"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-100 border border-zinc-100">
+                      <ProductThumbnail
+                        src={prod.imageUrl}
+                        productId={prod.id}
+                        alt={prod.name}
+                        iconSize={18}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-zinc-900 truncate" title={prod.name}>
+                        {prod.name}
+                      </p>
+                      <p className="text-[11px] font-extrabold text-zinc-950 mt-0.5">
+                        {formatPrice(prod.price)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onOpenReview(prod)}
+                      className="shrink-0 flex items-center gap-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 text-xs font-bold transition-all shadow-xs active:scale-95"
+                    >
+                      <Star size={12} className="fill-white" />
+                      <span>Отзыв</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reviews List */}
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-3xl border border-zinc-200/70 p-5 bg-zinc-50/50 space-y-3"
+            >
+              <div className="h-5 bg-zinc-200 rounded w-1/3" />
+              <div className="h-4 bg-zinc-200 rounded w-3/4" />
+              <div className="h-4 bg-zinc-200 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-50 text-amber-500 mb-4">
+            <Star size={36} className="fill-amber-400" />
+          </div>
+          <h4 className="text-lg font-extrabold text-zinc-950 font-display">
+            Вы пока не оставили ни одного отзыва
+          </h4>
+          <p className="text-xs sm:text-sm text-zinc-500 max-w-md mt-1.5 leading-relaxed">
+            После получения заказа вы можете оценить товар и поделиться мнением. Ваши отзывы помогут другим покупателям!
+          </p>
+          <button
+            onClick={onGoToPurchases}
+            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-zinc-800 active:scale-95 transition-all"
+          >
+            <span>К купленным товарам</span>
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reviews.map((rev) => (
+            <div
+              key={rev.id}
+              className="rounded-3xl border border-zinc-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-zinc-300 transition-all"
+            >
+              {/* Review Product Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-100 border border-zinc-100">
+                    <ProductThumbnail
+                      src={rev.productImageUrl}
+                      productId={rev.productId}
+                      alt={rev.productName}
+                      iconSize={18}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/product/${rev.productSlug || rev.productId}`}
+                      className="text-sm font-bold text-zinc-900 hover:text-emerald-600 transition-colors line-clamp-1"
+                    >
+                      {rev.productName}
+                    </Link>
+                    <div className="flex items-center gap-2 mt-1">
+                      {/* Rating Stars */}
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            size={14}
+                            className={
+                              star <= rev.rating
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-zinc-200'
+                            }
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs font-bold text-zinc-700">
+                        {rev.rating} из 5
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status & Date */}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  {rev.published ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                      <CheckCircle2 size={12} />
+                      Опубликован
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                      <Clock size={12} />
+                      На модерации
+                    </span>
+                  )}
+                  <span className="text-xs text-zinc-400">
+                    {rev.date ? new Date(rev.date).toLocaleDateString('ru-RU') : ''}
+                  </span>
+                </div>
+              </div>
+
+              {/* Review Text */}
+              <div className="pt-4">
+                <p className="text-sm text-zinc-800 leading-relaxed whitespace-pre-line">
+                  {rev.text}
+                </p>
+              </div>
+
+              {/* Store Response (if any) */}
+              {rev.reply && (
+                <div className="mt-4 rounded-2xl border-l-4 border-emerald-500 bg-emerald-50/60 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 mb-1.5">
+                    <ShieldCheck size={16} className="text-emerald-600" />
+                    <span>Ответ SmartMarket</span>
+                    {rev.replyDate && (
+                      <span className="font-normal text-emerald-700/80">
+                        • {new Date(rev.replyDate).toLocaleDateString('ru-RU')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-zinc-700 leading-relaxed whitespace-pre-line">
+                    {rev.reply}
+                  </p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================================================================= */
+/*                         ВКЛАДКА: ВОПРОСЫ К ТОВАРАМ                        */
+/* ========================================================================= */
+
+interface QuestionsTabProps {
+  questions: UserQuestionItem[];
+  loading: boolean;
+  userInitial?: string;
+}
+
+function QuestionsTab({ questions, loading, userInitial }: QuestionsTabProps) {
+  const { user } = useAuthStore();
+  const initial = userInitial || (user?.name ? user.name.charAt(0).toUpperCase() : (user?.email ? user.email.charAt(0).toUpperCase() : 'U'));
+  const [filter, setFilter] = useState<'all' | 'answered' | 'pending'>('all');
+
+  const answeredCount = questions.filter((q) => Boolean(q.reply)).length;
+  const pendingCount = questions.length - answeredCount;
+
+  const filteredQuestions = questions.filter((q) => {
+    if (filter === 'answered') return Boolean(q.reply);
+    if (filter === 'pending') return !q.reply;
+    return true;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-5">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-xl font-extrabold text-zinc-950 font-display">
+              Вопросы к товарам
+            </h3>
+            <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+              {questions.length}
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-1">
+            Ваши вопросы о характеристиках товаров и ответы консультантов магазина
+          </p>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 bg-zinc-100/80 p-1 rounded-2xl self-start sm:self-auto">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              filter === 'all'
+                ? 'bg-white text-zinc-950 shadow-xs'
+                : 'text-zinc-600 hover:text-zinc-950'
+            }`}
+          >
+            Все ({questions.length})
+          </button>
+          <button
+            onClick={() => setFilter('answered')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              filter === 'answered'
+                ? 'bg-white text-emerald-700 shadow-xs'
+                : 'text-zinc-600 hover:text-zinc-950'
+            }`}
+          >
+            С ответом ({answeredCount})
+          </button>
+          <button
+            onClick={() => setFilter('pending')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              filter === 'pending'
+                ? 'bg-white text-amber-700 shadow-xs'
+                : 'text-zinc-600 hover:text-zinc-950'
+            }`}
+          >
+            Ожидают ({pendingCount})
+          </button>
+        </div>
+      </div>
+
+      {/* Questions List */}
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-3xl border border-zinc-200/70 p-5 bg-zinc-50/50 space-y-3"
+            >
+              <div className="h-5 bg-zinc-200 rounded w-1/3" />
+              <div className="h-4 bg-zinc-200 rounded w-3/4" />
+            </div>
+          ))}
+        </div>
+      ) : filteredQuestions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-zinc-100 text-zinc-400 mb-4">
+            <HelpCircle size={36} />
+          </div>
+          <h4 className="text-lg font-extrabold text-zinc-950 font-display">
+            {questions.length === 0
+              ? 'Вы пока не задавали вопросов'
+              : 'В этой категории вопросов нет'}
+          </h4>
+          <p className="text-xs sm:text-sm text-zinc-500 max-w-md mt-1.5 leading-relaxed">
+            {questions.length === 0
+              ? 'Если у вас есть вопросы о совместимости, характеристиках или наличии любого товара, задайте их прямо на карточке товара.'
+              : 'Попробуйте переключить фильтр, чтобы увидеть остальные вопросы.'}
+          </p>
+          {questions.length === 0 && (
+            <Link
+              href="/catalog"
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-zinc-800 active:scale-95 transition-all"
+            >
+              <span>Перейти в каталог</span>
+              <ArrowRight size={16} />
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredQuestions.map((q) => (
+            <div
+              key={q.id}
+              className="rounded-3xl border border-zinc-200/80 bg-white p-5 sm:p-6 shadow-xs hover:border-zinc-300 transition-all"
+            >
+              {/* Question Product Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-100 border border-zinc-100">
+                    <ProductThumbnail
+                      src={q.productImageUrl}
+                      productId={q.productId}
+                      alt={q.productName}
+                      iconSize={18}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <Link
+                      href={`/product/${q.productSlug || q.productId}`}
+                      className="text-sm font-bold text-zinc-900 hover:text-emerald-600 transition-colors line-clamp-1"
+                    >
+                      {q.productName}
+                    </Link>
+                    <span className="text-[11px] text-zinc-400">
+                      {q.date ? new Date(q.date).toLocaleDateString('ru-RU') : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Badge */}
+                <div className="self-start sm:self-auto">
+                  {q.reply ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                      <CheckCircle2 size={12} />
+                      Ответ получен
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-600">
+                      <Clock size={12} />
+                      Ожидает ответа
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Question Text */}
+              <div className="pt-4">
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-xs font-black text-white shadow-xs">
+                    {initial}
+                  </div>
+                  <p className="text-sm text-zinc-900 font-medium leading-relaxed whitespace-pre-line pt-0.5">
+                    {q.text}
+                  </p>
+                </div>
+              </div>
+
+              {/* Answer Box (if answered) */}
+              {q.reply ? (
+                <div className="mt-4 rounded-2xl border-l-4 border-emerald-500 bg-emerald-50/60 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 mb-1.5">
+                    <ShieldCheck size={16} className="text-emerald-600" />
+                    <span>Ответ специалиста SmartMarket</span>
+                    {q.replyDate && (
+                      <span className="font-normal text-emerald-700/80">
+                        • {new Date(q.replyDate).toLocaleDateString('ru-RU')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-zinc-700 leading-relaxed whitespace-pre-line">
+                    {q.reply}
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl bg-zinc-50 border border-zinc-100 p-3.5 text-xs text-zinc-500 flex items-center gap-2">
+                  <Clock size={14} className="text-zinc-400 shrink-0" />
+                  <span>
+                    Наши специалисты обычно отвечают в течение рабочего дня. Вы получите уведомление, когда ответ появится.
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ========================================================================= */
+/*                         МОДАЛЬНОЕ ОКНО: ОТЗЫВ                             */
+/* ========================================================================= */
+
+interface ReviewModalProps {
+  product: PurchasedProduct;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+const RATING_DESCRIPTIONS: Record<number, string> = {
+  1: 'Ужасно — всё очень плохо',
+  2: 'Плохо — есть серьёзные недостатки',
+  3: 'Нормально — среднее качество',
+  4: 'Хорошо — покупкой доволен',
+  5: 'Отлично! — рекомендую к покупке',
+};
+
+function ReviewModal({ product, onClose, onSuccess }: ReviewModalProps) {
+  const [rating, setRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [text, setText] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  const activeRating = hoverRating || rating;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim() || text.trim().length < 5) {
+      setError('Пожалуйста, напишите пару слов о впечатлениях (минимум 5 символов)');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await reviewsService.submitReview(product.id, {
+        rating,
+        text: text.trim(),
+      });
+      toast.success('Спасибо за отзыв! Он появится после проверки модератором.');
+      onSuccess();
+    } catch (err: any) {
+      setError(err?.message || 'Не удалось отправить отзыв. Попробуйте позже.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs"
+      />
+
+      {/* Modal Dialog */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative w-full max-w-lg rounded-3xl border border-zinc-200 bg-white p-6 sm:p-8 shadow-2xl z-10"
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute right-5 top-5 rounded-2xl p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+          aria-label="Закрыть"
+        >
+          <X size={20} />
+        </button>
+
+        {/* Modal Title */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+            <Star size={18} className="fill-amber-400" />
+          </div>
+          <h3 className="text-xl font-extrabold text-zinc-950 font-display">
+            Оставить отзыв
+          </h3>
+        </div>
+
+        {/* Product mini-card */}
+        <div className="my-4 flex items-center gap-3 rounded-2xl bg-zinc-50 p-3 border border-zinc-100">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white border border-zinc-200/60">
+            <ProductThumbnail
+              src={product.imageUrl}
+              productId={product.id}
+              alt={product.name}
+              iconSize={18}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold text-zinc-900 line-clamp-1">
+              {product.name}
+            </p>
+            {product.price > 0 ? (
+              <p className="text-[11px] font-extrabold text-zinc-600 mt-0.5">
+                {formatPrice(product.price)}
+              </p>
+            ) : product.orderDate ? (
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                Куплен {new Date(product.orderDate).toLocaleDateString('ru-RU')}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Star Rating Selector */}
+          <div>
+            <label className="block text-xs font-bold text-zinc-700 mb-2">
+              Ваша оценка
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="p-1 rounded-xl transition-transform hover:scale-110 active:scale-95"
+                    aria-label={`Оценка ${star} из 5`}
+                  >
+                    <Star
+                      size={28}
+                      className={`transition-colors ${
+                        star <= activeRating
+                          ? 'fill-amber-400 text-amber-400 drop-shadow-xs'
+                          : 'text-zinc-200 hover:text-zinc-300'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs font-bold text-zinc-700 ml-2">
+                {RATING_DESCRIPTIONS[activeRating] || ''}
+              </span>
+            </div>
+          </div>
+
+          {/* Review Text */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-zinc-700">
+                Ваш отзыв
+              </label>
+              <span className="text-[10px] text-zinc-400 font-medium">
+                {text.length} символов
+              </span>
+            </div>
+            <textarea
+              rows={4}
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (error) setError('');
+              }}
+              placeholder="Расскажите о достоинствах и недостатках, поделитесь опытом использования..."
+              className="w-full rounded-2xl border border-zinc-200/90 bg-zinc-50/70 p-3.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all resize-none"
+            />
+          </div>
+
+          {/* Error feedback */}
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+              <XCircle size={15} className="shrink-0 text-rose-500" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="rounded-xl px-4 py-2.5 text-xs font-bold text-zinc-600 hover:bg-zinc-100 active:scale-95 transition-all"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white px-5 py-2.5 text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-50"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Отправка...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={14} />
+                  <span>Отправить отзыв</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   );
 }

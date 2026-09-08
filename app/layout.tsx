@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import { AIChatbotWrapper } from '../components/AIChatbotWrapper';
 import { ProductsInitializer } from '../components/ProductsInitializer';
 import { AuthProvider } from '../components/AuthProvider';
+import { PwaUpdater } from '../components/PwaUpdater';
 
 const APP_NAME = 'SmartMarket';
 const APP_DESCRIPTION = 'Собственный магазин без комиссий маркетплейсов';
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <AuthProvider>
+          <PwaUpdater />
           <ProductsInitializer />
           <div className="flex min-h-screen flex-col bg-white text-gray-900">
             <Header />

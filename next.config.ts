@@ -6,15 +6,16 @@ const withPWA = withPWAInit({
   // В dev-режиме SW не регистрируем, чтобы не мешал hot reload
   disable: process.env.NODE_ENV === 'development',
   register: true,
-  // Кэшируем стартовый URL
-  cacheStartUrl: true,
-  // Кэшируем навигацию на фронте
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  // Переиспользуем SW без ожидания
-  reloadOnOnline: true,
+  // Не кэшируем навигацию агрессивно, чтобы пользователи всегда получали актуальные страницы
+  cacheStartUrl: false,
+  cacheOnFrontEndNav: false,
+  aggressiveFrontEndNavCaching: false,
+  // Переиспользуем SW сразу при обновлении
+  reloadOnOnline: false,
   workboxOptions: {
     disableDevLogs: true,
+    skipWaiting: true,
+    clientsClaim: true,
   },
 });
 

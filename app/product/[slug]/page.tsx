@@ -10,10 +10,14 @@ import { motion } from 'motion/react';
 import { ImageSlider } from '../../../components/ImageSlider';
 import { useCartStore } from '../../../store/cartStore';
 import { useFavoritesStore } from '../../../store/favoritesStore';
-import { formatPrice } from '../../../lib/utils';
+import { formatPrice, pluralizeReviews, pluralizeQuestions } from '../../../lib/utils';
 import { ProductCard } from '../../../components/ProductCard';
 import { fetchProductBySlug, fetchCatalog } from '../../../lib/1c/catalog';
+import { reviewsService } from '../../../lib/1c/reviews';
+import { ProductReviews } from '../../../components/ProductReviews';
+import { ProductQuestions } from '../../../components/ProductQuestions';
 import { Product } from '../../../types';
+import { getProductFallbackImage } from '../../../lib/productMedia';
 
 const FALLBACK_IMAGE = '/service/image-unavailable.svg';
 
@@ -25,25 +29,41 @@ export default function ProductPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
   const [notFound, setNotFound] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [reviewsSummary, setReviewsSummary] = useState<{ total: number; rating: number; questionsTotal: number }>({
+    total: 0,
+    rating: 0,
+    questionsTotal: 0,
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
 
   useEffect(() => {
     if (!slug) return;
     const controller = new AbortController();
     setNotFound(false);
+    setFetchError(false);
 
     fetchProductBySlug(slug, controller.signal)
       .then((p) => {
         if (controller.signal.aborted) return;
         if (!p) { setNotFound(true); return; }
         setProduct(p);
+        setReviewsSummary({
+          total: p.reviewsCount ?? 0,
+          rating: p.rating ?? 0,
+          questionsTotal: p.questionsCount ?? 0,
+        });
       })
-      .catch(() => {
+      .catch((err) => {
         if (controller.signal.aborted) return;
-        setNotFound(true);
+        console.error('Ошибка загрузки товара:', err);
+        setFetchError(true);
       });
 
     return () => controller.abort();
-  }, [slug]);
+  }, [slug, reloadKey]);
 
   // Загружаем похожие товары когда знаем категорию и категории загружены
   useEffect(() => {
@@ -54,6 +74,27 @@ export default function ProductPage() {
       .then(({ products }) => setSimilarProducts(products.filter((x) => x.id !== product.id).slice(0, 4)))
       .catch(() => {});
     return () => controller.abort();
+  }, [product?.id]);
+
+  // Загружаем счётчики отзывов/вопросов и проверяем авторизацию
+  useEffect(() => {
+    if (!product) return;
+    const ctrl = new AbortController();
+    Promise.all([
+      reviewsService.getReviews(product.id, { limit: 1 }, ctrl.signal).catch(() => null),
+      reviewsService.getQuestions(product.id, { limit: 1 }, ctrl.signal).catch(() => null),
+    ]).then(([rev, que]) => {
+      setReviewsSummary({
+        total: rev?.total ?? 0,
+        rating: rev?.rating ?? 0,
+        questionsTotal: que?.total ?? 0,
+      });
+    });
+    // Проверяем авторизацию через /api/auth/profile
+    fetch('/api/auth/profile', { signal: ctrl.signal })
+      .then((r) => setIsLoggedIn(r.ok))
+      .catch(() => {});
+    return () => ctrl.abort();
   }, [product?.id]);
 
   const { addItem, updateQuantity, removeItem } = useCartStore();
@@ -78,6 +119,26 @@ export default function ProductPage() {
     if (product?.imageUrl) setActiveImage(product.imageUrl);
   }, [product?.imageUrl]);
 
+  if (fetchError) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[50vh] flex-col items-center justify-center text-center px-4">
+        <h2 className="text-2xl font-bold text-zinc-900">Не удалось загрузить данные о товаре</h2>
+        <p className="mt-2 text-sm text-zinc-500 max-w-md">Проверьте соединение с интернетом или обновите страницу</p>
+        <div className="mt-6 flex items-center gap-3">
+          <button
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm px-6 py-2.5 rounded-2xl transition-colors"
+          >
+            Повторить попытку
+          </button>
+          <Link href="/catalog" className="text-sm font-semibold text-zinc-600 hover:text-zinc-900 px-4 py-2.5 rounded-2xl border border-zinc-200">
+            В каталог
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
+
   if (notFound) {
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[50vh] flex-col items-center justify-center">
@@ -94,8 +155,9 @@ export default function ProductPage() {
       </div>
     );
   }
-  const mockColors = product.images?.length > 0 ? product.images : [product.imageUrl || FALLBACK_IMAGE];
-  const currentIndex = mockColors.indexOf(activeImage);
+  const defaultImg = product.imageUrl || getProductFallbackImage(product.slug || product.id, product.name);
+  const mockColors = product.images?.length > 0 ? product.images : [defaultImg];
+  const currentIndex = Math.max(0, mockColors.indexOf(activeImage));
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -148,7 +210,20 @@ export default function ProductPage() {
           <div className="hidden sm:flex flex-row sm:flex-col gap-2 w-full sm:w-14 lg:w-16 shrink-0 max-h-[600px] overflow-y-auto scrollbar-hide py-1">
             {mockColors.map((img, idx) => (
               <button key={idx} onClick={() => setActiveImage(img)} className={`relative aspect-[3/4] w-14 sm:w-full shrink-0 overflow-hidden rounded-xl border-2 transition-all ${activeImage === img ? 'border-emerald-500 shadow-md' : 'border-transparent hover:border-zinc-300 opacity-70 hover:opacity-100'} bg-white`}>
-                <Image src={img} alt={`${product.name} ${idx + 1}`} fill sizes="64px" className="object-contain" />
+                <Image
+                  src={img}
+                  alt={`${product.name} ${idx + 1}`}
+                  fill
+                  sizes="64px"
+                  className="object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const fallback = getProductFallbackImage(product.slug || product.id, product.name);
+                    if (target.src !== fallback) {
+                      target.src = fallback;
+                    }
+                  }}
+                />
               </button>
             ))}
           </div>
@@ -158,6 +233,7 @@ export default function ProductPage() {
               activeIndex={currentIndex}
               onIndexChange={goTo}
               alt={product.name}
+              fallbackSrc={getProductFallbackImage(product.slug || product.id, product.name)}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 sm:hidden pointer-events-none z-10">
               {mockColors.map((_, idx) => (
@@ -183,16 +259,23 @@ export default function ProductPage() {
               </button>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-500 font-medium">
-              <div className="flex items-center text-amber-500 bg-amber-50 px-2 py-1 rounded-md">
-                <Star size={16} className="fill-current" /><span className="ml-1.5 font-bold">4.9</span>
+              <div className="flex items-center text-amber-500 bg-amber-50 px-2.5 py-1 rounded-lg">
+                <Star size={16} className={reviewsSummary.rating > 0 ? "fill-current text-amber-500" : "text-zinc-400"} />
+                <span className="ml-1.5 font-bold text-zinc-900">
+                  {reviewsSummary.rating > 0 ? reviewsSummary.rating.toFixed(1) : 'Нет оценок'}
+                </span>
               </div>
               <span className="text-zinc-300">•</span>
-              <span className="hover:text-emerald-600 cursor-pointer transition-colors border-b border-dashed border-zinc-300 hover:border-emerald-600">9 897 отзывов</span>
+              <a href="#reviews" className="hover:text-emerald-600 cursor-pointer transition-colors border-b border-dashed border-zinc-300 hover:border-emerald-600">
+                {reviewsSummary.total > 0 ? pluralizeReviews(reviewsSummary.total) : '0 отзывов'}
+              </a>
               <span className="text-zinc-300">•</span>
-              <span className="flex items-center gap-1.5 hover:text-emerald-600 cursor-pointer transition-colors border-b border-dashed border-zinc-300 hover:border-emerald-600">
-                <MessageCircle size={16} />94 вопроса
-              </span>
+              <a href="#questions" className="flex items-center gap-1.5 hover:text-emerald-600 cursor-pointer transition-colors border-b border-dashed border-zinc-300 hover:border-emerald-600">
+                <MessageCircle size={16} />
+                {reviewsSummary.questionsTotal > 0 ? pluralizeQuestions(reviewsSummary.questionsTotal) : '0 вопросов'}
+              </a>
             </div>
+
           </div>
 
           <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm ring-1 ring-zinc-200/50">
@@ -382,6 +465,18 @@ export default function ProductPage() {
             <p>{product.description}</p>
           </div>
         </div>
+
+        {/* Отзывы */}
+        <ProductReviews
+          productId={product.id}
+          isLoggedIn={isLoggedIn}
+          isPurchased={product.isPurchased}
+          canReview={product.canReview}
+          hasReview={product.hasReview}
+        />
+
+        {/* Вопросы */}
+        <ProductQuestions productId={product.id} isLoggedIn={isLoggedIn} />
       </motion.div>
 
       {similarProducts.length > 0 && (

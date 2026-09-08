@@ -19,6 +19,12 @@ export interface Product {
   images: string[];
   characteristics: Record<string, string>;
   sku: string;
+  reviewsCount?: number;
+  questionsCount?: number;
+  rating?: number;
+  isPurchased?: boolean;
+  canReview?: boolean;
+  hasReview?: boolean;
 }
 
 export interface CartItem extends Product {

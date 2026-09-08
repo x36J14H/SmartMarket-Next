@@ -11,7 +11,7 @@ const USERNAME = process.env.ONEC_USERNAME ?? 'Администратор';
 const PASSWORD = process.env.ONEC_PASSWORD ?? '';
 const BASIC_AUTH = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
 
-const ALLOWED_PREFIXES = ['wishlist', 'cart', 'profile', 'orders'];
+const ALLOWED_PREFIXES = ['wishlist', 'cart', 'profile', 'orders', 'purchases', 'reviews', 'questions'];
 
 type Context = { params: Promise<{ path: string[] }> };
 
@@ -23,7 +23,7 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
     return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
   }
 
-  const token = req.cookies.get('auth_token')?.value;
+  const token = req.headers.get('x-auth-token') ?? req.cookies.get('auth_token')?.value;
   if (!token) return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
 
   const url = `${PERSONAL_URL}/${joined}`;
@@ -53,7 +53,14 @@ async function proxy(req: NextRequest, { params }: Context): Promise<NextRespons
     });
 
     const text = await res.text();
-    const data = text.trim() ? JSON.parse(text) : {};
+    let data: any = {};
+    if (text.trim()) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text.trim() || `Ошибка сервера (HTTP ${res.status})` };
+      }
+    }
     return NextResponse.json(data, { status: res.status });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unknown error';

@@ -23,16 +23,13 @@ import {
   Tablet,
   Home,
   Warehouse,
-  CreditCard,
   Star,
   RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
 import { ProductCard } from '../components/ProductCard';
 import { useProductsStore } from '../store/productsStore';
-import { useCartStore } from '../store/cartStore';
 import { fetchCatalog } from '../lib/1c/catalog';
 import { formatPrice } from '../lib/utils';
 import type { Product } from '../types';
@@ -197,9 +194,6 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'all' | 'hits' | 'new'>('all');
   const [activeSlide, setActiveSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [timeLeft, setTimeLeft] = useState('08:42:15');
-
-  const { addItem } = useCartStore();
 
   // Загрузка каталога с автоматическим fallback
   useEffect(() => {
@@ -226,24 +220,6 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [isHovered]);
 
-  // Таймер для блока «Товар дня»
-  useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date();
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
-      const diff = Math.max(0, endOfDay.getTime() - now.getTime());
-      const hours = String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, '0');
-      const minutes = String(Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
-      const seconds = String(Math.floor((diff % (1000 * 60)) / 1000)).padStart(2, '0');
-      setTimeLeft(`${hours}:${minutes}:${seconds}`);
-    };
-
-    updateCountdown();
-    const timer = setInterval(updateCountdown, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Актуализируем данные слайдов из 1С при наличии каталога
   const activeSlides = HERO_SLIDES.map((slide) => {
     const liveProd = popularProducts.find(
@@ -263,27 +239,6 @@ export default function HomePage() {
   });
 
   const currentHeroSlide = activeSlides[activeSlide] || activeSlides[0];
-
-  // Выбираем товар дня из реальных товаров 1С, отличный от текущего слайдера
-  const dealOfTheDay =
-    popularProducts.find(
-      (p) =>
-        p.id !== currentHeroSlide.productId &&
-        p.imageUrl &&
-        !p.imageUrl.includes('image-unavailable.svg')
-    ) ||
-    popularProducts.find((p) => p.id !== currentHeroSlide.productId) ||
-    FALLBACK_PROMO_PRODUCTS.find((p) => p.id !== currentHeroSlide.productId) ||
-    popularProducts[0] ||
-    FALLBACK_PROMO_PRODUCTS[0];
-
-  const handleBuyDealProduct = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!dealOfTheDay) return;
-    addItem(dealOfTheDay);
-    toast.success('Товар дня добавлен в корзину!');
-  };
-
   const filteredProducts = popularProducts.filter((p, index) => {
     if (activeTab === 'hits') return index % 2 === 0;
     if (activeTab === 'new') return index % 2 !== 0;
@@ -323,306 +278,175 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Главная коммерческая сетка 8/4 (Флагманский слайдер + Товар дня / Рассрочка) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
-          {/* Левая колонка (lg:col-span-8): Двухколоночный промо-слайдер */}
-          <div
-            className="lg:col-span-8 relative overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm flex flex-col justify-between min-h-[380px] sm:min-h-[400px] lg:min-h-[420px]"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentHeroSlide.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-                className={`absolute inset-0 flex flex-col justify-between bg-gradient-to-br ${currentHeroSlide.gradient}`}
-              >
-                {/* Рассеянные световые ореолы */}
-                <div className={`absolute top-0 right-1/4 h-72 w-72 rounded-full ${currentHeroSlide.accentGlow} blur-3xl pointer-events-none`} />
-                <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-zinc-400/5 blur-3xl pointer-events-none" />
+        {/* Флагманский промо-слайдер */}
+        <div
+          className="relative overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm flex flex-col justify-between min-h-[380px] sm:min-h-[420px] lg:min-h-[440px] xl:min-h-[460px] w-full"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentHeroSlide.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className={`absolute inset-0 flex flex-col justify-between bg-gradient-to-br ${currentHeroSlide.gradient}`}
+            >
+              {/* Рассеянные световые ореолы */}
+              <div className={`absolute top-0 right-1/4 h-72 w-72 lg:h-96 lg:w-96 rounded-full ${currentHeroSlide.accentGlow} blur-3xl pointer-events-none`} />
+              <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-zinc-400/5 blur-3xl pointer-events-none" />
 
-                {/* Двухколоночный контент слайда */}
-                <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center p-5 sm:p-7 lg:p-8 flex-1">
-                  {/* Левая сторона: информация об устройстве, цены и кнопки */}
-                  <div className="md:col-span-7 flex flex-col justify-center">
-                    {/* Бейдж акции и гарантия */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide shadow-2xs ${currentHeroSlide.badgeColor}`}>
-                        <currentHeroSlide.tagIcon size={13} className="text-amber-400" />
-                        <span>{currentHeroSlide.tag}</span>
-                      </span>
-                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-zinc-600 border border-zinc-200/80 shadow-2xs backdrop-blur-xs">
-                        <CheckCircle2 size={13} className="text-emerald-500" />
-                        Официальная поставка
-                      </span>
-                    </div>
+              {/* Двухколоночный контент слайда */}
+              <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-center p-5 sm:p-8 lg:p-10 flex-1">
+                {/* Левая сторона: информация об устройстве, цены и кнопки */}
+                <div className="md:col-span-7 flex flex-col justify-center">
+                  {/* Бейдж акции и гарантия */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide shadow-2xs ${currentHeroSlide.badgeColor}`}>
+                      <currentHeroSlide.tagIcon size={13} className="text-amber-400" />
+                      <span>{currentHeroSlide.tag}</span>
+                    </span>
+                    <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-zinc-600 border border-zinc-200/80 shadow-2xs backdrop-blur-xs">
+                      <CheckCircle2 size={13} className="text-emerald-500" />
+                      Официальная поставка
+                    </span>
+                  </div>
 
-                    {/* Заголовок и модель */}
-                    <div className="mt-3">
-                      <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-600">
-                        {currentHeroSlide.title}
-                      </span>
-                      <h1 className="mt-0.5 font-display text-2xl sm:text-3xl lg:text-[34px] xl:text-[38px] font-black tracking-tight text-zinc-950 leading-[1.1]">
-                        {currentHeroSlide.model}
-                      </h1>
-                      <p className="mt-2 text-xs sm:text-sm text-zinc-600 font-normal leading-relaxed line-clamp-2">
-                        {currentHeroSlide.subtitle}
-                      </p>
-                    </div>
+                  {/* Заголовок и модель */}
+                  <div className="mt-3">
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-600">
+                      {currentHeroSlide.title}
+                    </span>
+                    <h1 className="mt-0.5 font-display text-2xl sm:text-3xl lg:text-[34px] xl:text-[40px] font-black tracking-tight text-zinc-950 leading-[1.1]">
+                      {currentHeroSlide.model}
+                    </h1>
+                    <p className="mt-2 text-xs sm:text-sm lg:text-base text-zinc-600 font-normal leading-relaxed line-clamp-2 max-w-xl">
+                      {currentHeroSlide.subtitle}
+                    </p>
+                  </div>
 
-                    {/* Блок цен и выгоды */}
-                    <div className="mt-3.5 flex flex-wrap items-baseline gap-2.5">
-                      <span className="font-display text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-black text-zinc-950">
-                        {formatPrice(currentHeroSlide.price)}
-                      </span>
-                      {currentHeroSlide.oldPrice > currentHeroSlide.price && (
-                        <>
-                          <span className="text-sm sm:text-base font-semibold text-zinc-400 line-through">
-                            {formatPrice(currentHeroSlide.oldPrice)}
-                          </span>
-                          <span className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-black text-rose-600 border border-rose-200/80">
-                            {currentHeroSlide.discountLabel}
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Микро-чипы характеристик */}
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {currentHeroSlide.specs.map((spec) => (
-                        <span
-                          key={spec}
-                          className="inline-flex items-center rounded-lg bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 border border-zinc-200/70 shadow-2xs"
-                        >
-                          ✓ {spec}
+                  {/* Блок цен и выгоды */}
+                  <div className="mt-3.5 flex flex-wrap items-baseline gap-2.5">
+                    <span className="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-zinc-950">
+                      {formatPrice(currentHeroSlide.price)}
+                    </span>
+                    {currentHeroSlide.oldPrice > currentHeroSlide.price && (
+                      <>
+                        <span className="text-sm sm:text-base lg:text-lg font-semibold text-zinc-400 line-through">
+                          {formatPrice(currentHeroSlide.oldPrice)}
                         </span>
-                      ))}
-                    </div>
-
-                    {/* Кнопки призыва к действию (CTA) */}
-                    <div className="mt-5 flex flex-wrap items-center gap-2.5">
-                      <Link
-                        href={currentHeroSlide.ctaPrimary.href}
-                        className="shimmer-btn inline-flex items-center justify-center rounded-2xl bg-zinc-950 px-6 sm:px-7 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        <ShoppingBag size={15} className="mr-2 text-emerald-400" />
-                        <span>{currentHeroSlide.ctaPrimary.text}</span>
-                        <ArrowRight size={14} className="ml-2" />
-                      </Link>
-
-                      <Link
-                        href={currentHeroSlide.ctaSecondary.href}
-                        className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-4 sm:px-5 py-3 text-xs sm:text-sm font-bold text-zinc-800 border border-zinc-200/80 hover:bg-zinc-50 hover:border-zinc-300 transition-all shadow-2xs"
-                      >
-                        <span>{currentHeroSlide.ctaSecondary.text}</span>
-                      </Link>
-                    </div>
-                  </div>
-
-                  {/* Правая сторона: рендер устройства с объемной тенью и аккуратными бейджами */}
-                  <div className="md:col-span-5 relative flex items-center justify-center py-2 md:py-0">
-                    <div className="relative h-56 w-56 sm:h-64 sm:w-64 md:h-64 md:w-64 lg:h-72 lg:w-72 xl:h-80 xl:w-80 transition-transform duration-500 hover:scale-105">
-                      <Image
-                        src={currentHeroSlide.imageUrl}
-                        alt={currentHeroSlide.imageAlt}
-                        fill
-                        priority
-                        sizes="(max-width: 768px) 240px, (max-width: 1200px) 300px, 340px"
-                        className="object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)] rounded-2xl"
-                      />
-
-                      {/* Плавающий бейдж рейтинга (привязан к изображению) */}
-                      <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-bold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
-                        <Star size={12} className="fill-amber-400 text-amber-400" />
-                        <span>{currentHeroSlide.rating}</span>
-                        <span className="text-zinc-400 font-normal text-[10px]">({currentHeroSlide.reviewCount})</span>
-                      </div>
-
-                      {/* Плавающий бейдж наличия (привязан к изображению) */}
-                      <div className="absolute bottom-1 left-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-semibold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[11px] font-bold text-zinc-700">{currentHeroSlide.stockStatus}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Нижняя полоса управления слайдером */}
-                <div className="relative z-10 flex items-center justify-between border-t border-zinc-200/60 px-5 sm:px-8 py-2.5 sm:py-3 bg-white/60 backdrop-blur-xs">
-                  {/* Индикаторы слайдов */}
-                  <div className="flex items-center gap-2">
-                    {activeSlides.map((slide, idx) => (
-                      <button
-                        key={slide.id}
-                        onClick={() => setActiveSlide(idx)}
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          activeSlide === idx
-                            ? 'w-7 bg-zinc-950'
-                            : 'w-2 bg-zinc-300 hover:bg-zinc-400'
-                        }`}
-                        aria-label={`Перейти к слайду ${idx + 1}`}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Кнопки переключения */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() =>
-                        setActiveSlide((prev) =>
-                          prev === 0 ? activeSlides.length - 1 : prev - 1
-                        )
-                      }
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
-                      aria-label="Предыдущий слайд"
-                    >
-                      <ChevronLeft size={15} />
-                    </button>
-                    <button
-                      onClick={() =>
-                        setActiveSlide((prev) => (prev + 1) % activeSlides.length)
-                      }
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
-                      aria-label="Следующий слайд"
-                    >
-                      <ChevronRight size={15} />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Правая колонка (lg:col-span-4): Боковая промо-сетка «Товар дня» и «Рассрочка» */}
-          <div className="lg:col-span-4 flex flex-col gap-3 sm:gap-4 justify-between">
-            {/* Карточка 1: Товар дня со скидкой, таймером и кнопкой «В корзину» */}
-            <div className="group relative flex flex-col justify-between rounded-3xl border border-zinc-200/80 bg-white p-4 sm:p-5 shadow-sm hover:border-emerald-500/40 hover:shadow-md transition-all flex-1">
-              <div>
-                {/* Верхняя полоса: бейдж со счетчиком */}
-                <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-100">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-black text-rose-600 border border-rose-200/60 uppercase">
-                    <Flame size={12} className="text-rose-500" />
-                    Товар дня
-                  </span>
-
-                  <div className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-2.5 py-0.5 text-[11px] font-mono font-bold text-amber-400 shadow-2xs">
-                    <Clock size={11} className="text-amber-400" />
-                    <span>{timeLeft}</span>
-                  </div>
-                </div>
-
-                {/* Основной контент товара */}
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="relative h-20 w-20 sm:h-22 sm:w-22 shrink-0 rounded-2xl bg-zinc-50 p-1.5 overflow-hidden border border-zinc-100 group-hover:scale-105 transition-transform duration-300">
-                    <Image
-                      src={dealOfTheDay.imageUrl}
-                      alt={dealOfTheDay.name}
-                      fill
-                      sizes="96px"
-                      className="object-contain p-1"
-                    />
-                    {dealOfTheDay.oldPrice && dealOfTheDay.oldPrice > dealOfTheDay.price && (
-                      <span className="absolute top-1 left-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-black text-white">
-                        -{Math.round(((dealOfTheDay.oldPrice - dealOfTheDay.price) / dealOfTheDay.oldPrice) * 100)}%
-                      </span>
+                        <span className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-black text-rose-600 border border-rose-200/80">
+                          {currentHeroSlide.discountLabel}
+                        </span>
+                      </>
                     )}
                   </div>
 
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider line-clamp-1">
-                      {dealOfTheDay.brand || dealOfTheDay.category || 'Хит продаж'}
-                    </span>
+                  {/* Микро-чипы характеристик */}
+                  <div className="mt-3.5 flex flex-wrap gap-1.5">
+                    {currentHeroSlide.specs.map((spec) => (
+                      <span
+                        key={spec}
+                        className="inline-flex items-center rounded-lg bg-white/95 px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-zinc-700 border border-zinc-200/70 shadow-2xs"
+                      >
+                        ✓ {spec}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Кнопки призыва к действию (CTA) */}
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
                     <Link
-                      href={`/product/${dealOfTheDay.slug}`}
-                      className="mt-0.5 font-bold text-xs sm:text-sm text-zinc-950 hover:text-emerald-600 transition-colors line-clamp-2 leading-snug"
+                      href={currentHeroSlide.ctaPrimary.href}
+                      className="shimmer-btn inline-flex items-center justify-center rounded-2xl bg-zinc-950 px-6 sm:px-8 py-3.5 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      {dealOfTheDay.name}
+                      <ShoppingBag size={16} className="mr-2 text-emerald-400" />
+                      <span>{currentHeroSlide.ctaPrimary.text}</span>
+                      <ArrowRight size={15} className="ml-2" />
                     </Link>
 
-                    <div className="mt-1.5 flex items-baseline gap-2">
-                      <span className="text-base sm:text-lg font-black text-zinc-950 font-display">
-                        {formatPrice(dealOfTheDay.price)}
-                      </span>
-                      {dealOfTheDay.oldPrice && (
-                        <span className="text-[11px] font-medium text-zinc-400 line-through">
-                          {formatPrice(dealOfTheDay.oldPrice)}
-                        </span>
-                      )}
+                    <Link
+                      href={currentHeroSlide.ctaSecondary.href}
+                      className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-bold text-zinc-800 border border-zinc-200/80 hover:bg-zinc-50 hover:border-zinc-300 transition-all shadow-2xs"
+                    >
+                      <span>{currentHeroSlide.ctaSecondary.text}</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Правая сторона: рендер устройства с объемной тенью и аккуратными бейджами */}
+                <div className="md:col-span-5 relative flex items-center justify-center py-4 md:py-0">
+                  <div className="relative h-60 w-60 sm:h-72 sm:w-72 md:h-72 md:w-72 lg:h-84 lg:w-84 xl:h-96 xl:w-96 transition-transform duration-500 hover:scale-105">
+                    <Image
+                      src={currentHeroSlide.imageUrl}
+                      alt={currentHeroSlide.imageAlt}
+                      fill
+                      priority
+                      sizes="(max-width: 768px) 280px, (max-width: 1200px) 380px, 450px"
+                      className="object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)] rounded-2xl"
+                    />
+
+                    {/* Плавающий бейдж рейтинга (привязан к изображению) */}
+                    <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-bold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
+                      <Star size={12} className="fill-amber-400 text-amber-400" />
+                      <span>{currentHeroSlide.rating}</span>
+                      <span className="text-zinc-400 font-normal text-[10px]">({currentHeroSlide.reviewCount})</span>
+                    </div>
+
+                    {/* Плавающий бейдж наличия (привязан к изображению) */}
+                    <div className="absolute bottom-1 left-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-semibold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[11px] font-bold text-zinc-700">{currentHeroSlide.stockStatus}</span>
                     </div>
                   </div>
                 </div>
-
-                {/* Прогресс-бар остатка по акции */}
-                <div className="mt-2.5">
-                  <div className="flex items-center justify-between text-[10px] font-medium text-zinc-500 mb-1">
-                    <span>Осталось по спеццене:</span>
-                    <strong className="text-zinc-900 font-bold">{dealOfTheDay.inStock ? Math.min(dealOfTheDay.inStock, 4) : 3} шт. из 20</strong>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-rose-500 w-[85%]" />
-                  </div>
-                </div>
               </div>
 
-              {/* Кнопка покупки в 1 клик */}
-              <div className="mt-3 pt-2.5 border-t border-zinc-100">
-                <button
-                  onClick={handleBuyDealProduct}
-                  className="w-full inline-flex items-center justify-center rounded-xl bg-emerald-600 py-2.5 px-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-emerald-500 active:scale-98 transition-all cursor-pointer"
-                >
-                  <ShoppingBag size={14} className="mr-2" />
-                  В корзину • Забрать по акции
-                </button>
-              </div>
-            </div>
-
-            {/* Карточка 2: Рассрочка 0-0-24 без переплат */}
-            <div className="relative overflow-hidden rounded-3xl border border-zinc-200/80 bg-gradient-to-br from-white via-zinc-50/50 to-emerald-50/30 p-4 sm:p-5 shadow-sm flex flex-col justify-between flex-1">
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-800 ring-1 ring-emerald-500/20">
-                    <CreditCard size={11} className="text-emerald-600" />
-                    Рассрочка 0-0-24
-                  </span>
-                  <span className="text-[10px] font-bold text-zinc-400">Без переплат</span>
+              {/* Нижняя полоса управления слайдером */}
+              <div className="relative z-10 flex items-center justify-between border-t border-zinc-200/60 px-5 sm:px-8 py-2.5 sm:py-3 bg-white/60 backdrop-blur-xs">
+                {/* Индикаторы слайдов */}
+                <div className="flex items-center gap-2">
+                  {activeSlides.map((slide, idx) => (
+                    <button
+                      key={slide.id}
+                      onClick={() => setActiveSlide(idx)}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        activeSlide === idx
+                          ? 'w-7 bg-zinc-950'
+                          : 'w-2 bg-zinc-300 hover:bg-zinc-400'
+                      }`}
+                      aria-label={`Перейти к слайду ${idx + 1}`}
+                    />
+                  ))}
                 </div>
 
-                <h3 className="text-sm sm:text-base font-black text-zinc-950 mt-2 leading-snug">
-                  Техника вашей мечты без первого взноса
-                </h3>
-                <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed line-clamp-1">
-                  Одобрение онлайн за 2 минуты. Оплата равными долями.
-                </p>
-
-                {/* 3 микро-преимущества */}
-                <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-center">
-                  <div className="rounded-xl bg-white p-1.5 border border-zinc-100 shadow-2xs">
-                    <span className="block text-[11px] font-black text-emerald-600">0 ₽</span>
-                    <span className="block text-[9px] font-medium text-zinc-500">Взнос</span>
-                  </div>
-                  <div className="rounded-xl bg-white p-1.5 border border-zinc-100 shadow-2xs">
-                    <span className="block text-[11px] font-black text-emerald-600">0%</span>
-                    <span className="block text-[9px] font-medium text-zinc-500">Переплата</span>
-                  </div>
-                  <div className="rounded-xl bg-white p-1.5 border border-zinc-100 shadow-2xs">
-                    <span className="block text-[11px] font-black text-zinc-900">24 мес</span>
-                    <span className="block text-[9px] font-medium text-zinc-500">Срок</span>
-                  </div>
+                {/* Кнопки переключения */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() =>
+                      setActiveSlide((prev) =>
+                        prev === 0 ? activeSlides.length - 1 : prev - 1
+                      )
+                    }
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
+                    aria-label="Предыдущий слайд"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setActiveSlide((prev) => (prev + 1) % activeSlides.length)
+                    }
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
+                    aria-label="Следующий слайд"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
                 </div>
               </div>
-
-              <Link
-                href="/catalog"
-                className="mt-2.5 inline-flex items-center justify-between rounded-xl bg-zinc-100 hover:bg-zinc-200/80 px-3 py-2 text-[11px] font-bold text-zinc-900 transition-all group"
-              >
-                <span>Смотреть товары в рассрочку</span>
-                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform text-zinc-600" />
-              </Link>
-            </div>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Полоса гарантий и сервиса магазина (Trust Strip) */}

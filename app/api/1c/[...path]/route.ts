@@ -7,7 +7,10 @@ const PASSWORD = process.env.ONEC_PASSWORD ?? '';
 const AUTH_HEADER = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('base64');
 
 // Разрешённые префиксы путей — защита от SSRF
+// 'catalog' покрывает /catalog/{id}/reviews и /catalog/{id}/questions
 const ALLOWED_PREFIXES = ['catalog', 'categories', 'brands'];
+
+
 
 async function proxyRequest(req: NextRequest, path: string[]): Promise<NextResponse> {
   const joined = path.join('/');
@@ -22,11 +25,13 @@ async function proxyRequest(req: NextRequest, path: string[]): Promise<NextRespo
   try {
     const isPost = req.method === 'POST';
     const body = isPost ? await req.text() : undefined;
+    const token = req.cookies.get('auth_token')?.value;
 
     const res = await fetch(url.toString(), {
       method: req.method,
       headers: {
         Authorization: AUTH_HEADER,
+        ...(token ? { 'X-Auth-Token': token } : {}),
         ...(isPost ? { 'Content-Type': 'application/json' } : {}),
       },
       body,
@@ -54,6 +59,7 @@ async function proxyRequest(req: NextRequest, path: string[]): Promise<NextRespo
       } catch {
         errData = { error: res.statusText || `HTTP ${res.status}` };
       }
+      console.error(`[1C Proxy Error] ${req.method} ${joined} -> ${res.status}:`, errData);
       return NextResponse.json(errData, { status: res.status });
     }
 
