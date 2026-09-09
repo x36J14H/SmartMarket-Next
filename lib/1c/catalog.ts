@@ -192,10 +192,27 @@ export async function fetchAvailability(
       `catalog/availability?ids=${ids.slice(0, 200).join(',')}`,
       signal,
     );
-    for (const item of items) result.set(item.id, item);
+    if (Array.isArray(items) && items.length > 0) {
+      for (const item of items) result.set(item.id, item);
+      return result;
+    }
   } catch {
-    // При ошибке возвращаем пустую Map — вызывающий код решает как деградировать
+    // Если прямой вызов availability не удался, пробуем через fetchProductsByIds
   }
+
+  try {
+    const products = await fetchProductsByIds(ids, signal);
+    for (const p of products) {
+      result.set(p.id, {
+        id: p.id,
+        price: p.price,
+        inStock: p.inStock ?? 0,
+      });
+    }
+  } catch {
+    // Деградируем к пустой Map
+  }
+
   return result;
 }
 

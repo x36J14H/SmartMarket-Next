@@ -11,6 +11,7 @@ import { useAuthStore } from '../../store/authStore';
 import { ordersService, type Order, type OutOfStockItem } from '../../lib/1c/orders';
 import { formatPrice } from '../../lib/utils';
 import { AddressForm } from '../../components/AddressForm';
+import { getProductFallbackImage, sanitizeProductImageUrl } from '../../lib/productMedia';
 
 const DELIVERY_METHODS: Record<string, string> = {
   courier: 'КурьерскаяДоставка',
@@ -457,10 +458,16 @@ export default function CheckoutPage() {
             {checkoutItems.map((item) => (
               <li key={item.id} className="flex">
                 <img
-                  src={item.imageUrl}
+                  src={sanitizeProductImageUrl(item.id, item.slug, item.name, item.imageUrl)}
                   alt={item.name}
                   className="h-14 w-[42px] sm:h-16 sm:w-12 rounded-xl sm:rounded-2xl object-cover shadow-sm ring-1 ring-zinc-200/50"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const fallback = getProductFallbackImage(item.slug || item.id, item.name);
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    }
+                  }}
                 />
                 <div className="ml-3 sm:ml-4 flex flex-1 flex-col justify-center">
                   <div className="flex justify-between text-sm sm:text-base font-bold text-zinc-900">

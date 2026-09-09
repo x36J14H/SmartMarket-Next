@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { CartItem, Product } from '../types';
 import { personalService } from '../lib/1c/personal';
 import { fetchAvailability } from '../lib/1c/catalog';
+import { sanitizeProductImageUrl } from '../lib/productMedia';
 
 interface CartState {
   items: CartItem[];
@@ -28,6 +29,10 @@ export const useCartStore = create<CartState>()(
 
       addItem: async (product, quantity = 1) => {
         const inStock = product.inStock ?? 0;
+        const safeProduct: Product = {
+          ...product,
+          imageUrl: sanitizeProductImageUrl(product.id, product.slug, product.name, product.imageUrl),
+        };
         set((state) => {
           const existing = state.items.find((i) => i.id === product.id);
           if (existing) {
@@ -36,12 +41,12 @@ export const useCartStore = create<CartState>()(
               : existing.quantity + quantity;
             return {
               items: state.items.map((i) =>
-                i.id === product.id ? { ...i, quantity: newQty } : i
+                i.id === product.id ? { ...i, ...safeProduct, quantity: newQty } : i
               ),
             };
           }
           const initialQty = inStock > 0 ? Math.min(quantity, inStock) : quantity;
-          return { items: [...state.items, { ...product, quantity: initialQty }] };
+          return { items: [...state.items, { ...safeProduct, quantity: initialQty }] };
         });
 
         try {
@@ -153,9 +158,12 @@ export const useCartStore = create<CartState>()(
                 article: i.article,
                 slug: i.slug,
                 price: i.price,
-                imageUrl: i.imageUrl
-                  ? `/api/1c/catalog/${i.id}/images/${i.imageUrl}`
-                  : '/service/image-unavailable.svg',
+                imageUrl: sanitizeProductImageUrl(
+                  i.id,
+                  i.slug,
+                  i.name,
+                  i.imageUrl || local?.imageUrl
+                ),
                 quantity: i.qty,
                 sku: i.article,
               };
@@ -191,6 +199,16 @@ export const useCartStore = create<CartState>()(
       getTotalItems: () =>
         get().items.reduce((total, item) => total + item.quantity, 0),
     }),
-    { name: 'cart-storage' }
+    {
+      name: 'cart-storage',
+      onRehydrateStorage: () => (state) => {
+        if (state && Array.isArray(state.items)) {
+          state.items = state.items.map((item) => ({
+            ...item,
+            imageUrl: sanitizeProductImageUrl(item.id, item.slug, item.name, item.imageUrl),
+          }));
+        }
+      },
+    }
   )
 );

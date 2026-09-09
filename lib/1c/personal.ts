@@ -90,8 +90,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function normalizePersonalImageUrl(productId: string, fileId?: string | null): string {
   if (!fileId) return '';
-  const trimmed = fileId.trim();
+  let trimmed = fileId.trim();
   if (!trimmed) return '';
+  const lastApiIndex = trimmed.lastIndexOf('/api/1c/catalog/');
+  if (lastApiIndex > 0) {
+    trimmed = trimmed.substring(lastApiIndex);
+  }
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')) {
     return trimmed;
   }

@@ -25,11 +25,13 @@ import {
   Warehouse,
   Star,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { useProductsStore } from '../store/productsStore';
+import { useChatStore } from '../store/chatStore';
 import { fetchCatalog } from '../lib/1c/catalog';
 import { formatPrice } from '../lib/utils';
 import type { Product } from '../types';
@@ -571,7 +573,53 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 6. Категории товаров (Bento Category Showcase) */}
+      {/* 3. Интерактивный ИИ-Консультант (AI Shopping Banner) */}
+      <section className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-3xl bg-zinc-950 p-8 sm:p-12 lg:p-14 text-white shadow-2xl">
+          {/* Фоновые градиенты */}
+          <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-teal-500/10 blur-[100px] pointer-events-none" />
+
+          <div className="relative z-10 max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3.5 py-1.5 text-xs font-bold text-emerald-400 ring-1 ring-inset ring-emerald-500/20 mb-6">
+              <Sparkles size={14} />
+              <span>Smart Concierge</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-display">
+              Не знаете, что выбрать?{' '}
+              <br className="hidden sm:block" />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">
+                Спросите нашего ИИ-консультанта
+              </span>
+            </h2>
+
+            <p className="mt-4 text-sm sm:text-base lg:text-lg text-zinc-300 leading-relaxed font-normal">
+              Искусственный интеллект обучен на всем ассортименте SmartMarket.
+              Задайте вопрос своими словами — он сравнит параметры и подберёт идеальный вариант за секунды.
+            </p>
+
+            {/* Быстрые промпты */}
+            <div className="mt-8 flex flex-wrap gap-2.5">
+              {[
+                'Подбери смартфон до 45 000 ₽ с отличной камерой',
+                'Какой подарок выбрать коллеге на праздник?',
+                'Что лучше для работы: планшет или ноутбук?',
+              ].map((promptText) => (
+                <button
+                  key={promptText}
+                  onClick={() => useChatStore.getState().openWithPrompt(promptText)}
+                  className="rounded-xl bg-white/10 px-4 py-2 text-xs sm:text-sm font-semibold text-zinc-200 ring-1 ring-white/10 hover:bg-emerald-500/20 hover:text-white hover:ring-emerald-500/40 transition-all text-left cursor-pointer"
+                >
+                  💬 «{promptText}»
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Категории товаров (Bento Category Showcase) */}
       <section className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-600">

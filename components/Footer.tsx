@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Mail, Phone, MapPin, Tag, Send, ShieldCheck, CreditCard } from 'lucide-react';
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useChatStore } from '../store/chatStore';
 
 export function Footer() {
   const [email, setEmail] = useState('');
@@ -138,10 +139,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => {
-                    const btn = document.querySelector<HTMLButtonElement>('button[aria-label="Открыть чат с ИИ"]');
-                    btn?.click();
-                  }}
+                  onClick={() => useChatStore.getState().openChat()}
                   className="hover:text-emerald-600 transition-colors text-left flex items-center gap-1"
                 >
                   <span>Чат-консультант</span>

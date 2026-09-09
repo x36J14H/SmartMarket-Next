@@ -19,6 +19,47 @@ async function proxyRequest(req: NextRequest, path: string[]): Promise<NextRespo
     return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
   }
 
+  // Эндпоинт пакетной проверки остатков и цен GET /catalog/availability?ids=...
+  // В 1C он обрабатывается через POST /catalog/by-ids
+  if (joined === 'catalog/availability') {
+    const idsParam = req.nextUrl.searchParams.get('ids');
+    if (idsParam === null || idsParam === undefined) {
+      return NextResponse.json({ error: 'Параметр ids обязателен' }, { status: 400 });
+    }
+    const ids = idsParam.split(',').map((s) => s.trim()).filter(Boolean);
+    if (ids.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/catalog/by-ids`, {
+        method: 'POST',
+        headers: {
+          Authorization: AUTH_HEADER,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: ids.slice(0, 200) }),
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!res.ok) {
+        return NextResponse.json([]);
+      }
+
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const availability = items.map((item: { id: string; price?: number; inStock?: number }) => ({
+        id: item.id,
+        price: typeof item.price === 'number' ? item.price : 0,
+        inStock: typeof item.inStock === 'number' ? item.inStock : 0,
+      }));
+
+      return NextResponse.json(availability);
+    } catch {
+      return NextResponse.json([]);
+    }
+  }
+
   const url = new URL(`${BASE_URL}/${joined}`);
   req.nextUrl.searchParams.forEach((value, key) => url.searchParams.set(key, value));
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useChatStore } from '../../store/chatStore';
 
 export default function ContactsPage() {
   const [formData, setFormData] = useState({
@@ -121,10 +122,7 @@ export default function ContactsPage() {
                 Самый быстрый способ получить помощь или консультацию по характеристикам товара — запустить онлайн-диалог с ИИ SmartMarket.
               </p>
               <button
-                onClick={() => {
-                  const btn = document.querySelector<HTMLButtonElement>('button[aria-label="Открыть чат с ИИ"]');
-                  btn?.click();
-                }}
+                onClick={() => useChatStore.getState().openChat()}
                 className="shimmer-btn bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3.5 px-7 rounded-2xl transition-all shadow-glow-emerald w-full sm:w-auto"
               >
                 Открыть чат с ИИ

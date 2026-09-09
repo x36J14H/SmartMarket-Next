@@ -9,6 +9,33 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../../store/cartStore';
 import { formatPrice } from '../../lib/utils';
+import { CartItem } from '../../types';
+import { getProductFallbackImage, sanitizeProductImageUrl } from '../../lib/productMedia';
+
+function CartItemImage({ item }: { item: CartItem }) {
+  const [imgSrc, setImgSrc] = React.useState(() =>
+    sanitizeProductImageUrl(item.id, item.slug, item.name, item.imageUrl)
+  );
+
+  React.useEffect(() => {
+    setImgSrc(sanitizeProductImageUrl(item.id, item.slug, item.name, item.imageUrl));
+  }, [item.id, item.slug, item.name, item.imageUrl]);
+
+  return (
+    <div className="shrink-0">
+      <div className="relative h-20 w-[60px] sm:h-28 sm:w-[84px] rounded-xl sm:rounded-2xl overflow-hidden shadow-sm ring-1 ring-zinc-200/50 bg-zinc-50">
+        <Image
+          src={imgSrc}
+          alt={item.name}
+          fill
+          sizes="84px"
+          className="object-cover"
+          onError={() => setImgSrc(getProductFallbackImage(item.slug || item.id, item.name))}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, getTotalPrice, getTotalItems, refreshStock } = useCartStore();
@@ -230,17 +257,7 @@ export default function CartPage() {
                       )}
                     </button>
 
-                    <div className="shrink-0">
-                      <div className="relative h-20 w-[60px] sm:h-28 sm:w-[84px] rounded-xl sm:rounded-2xl overflow-hidden shadow-sm ring-1 ring-zinc-200/50">
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.name}
-                          fill
-                          sizes="84px"
-                          className="object-cover"
-                        />
-                      </div>
-                    </div>
+                    <CartItemImage item={item} />
 
                     <div className="flex flex-1 flex-col min-w-0 justify-between">
                       {/* Название + кнопка удалить */}

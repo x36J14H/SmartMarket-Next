@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
 import { fetchProductBySlug } from '../lib/1c/catalog';
 import { getProductImage, formatChatPrice } from '../lib/productMedia';
+import { useChatStore } from '../store/chatStore';
 import type { Product } from '../types';
 
 type Message = { id: string; role: 'user' | 'model'; text: string };
@@ -191,8 +192,19 @@ function ProductChatItem({ item }: { item: ChatProductItem }) {
 }
 
 export function AIChatbot() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const {
+    isOpen,
+    setIsOpen,
+    isFullScreen,
+    setIsFullScreen,
+    openChat,
+    closeChat,
+    input,
+    setInput,
+    pendingPrompt,
+    clearPendingPrompt,
+  } = useChatStore();
+
   const [hasFloatingBar, setHasFloatingBar] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -201,10 +213,10 @@ export function AIChatbot() {
       text: 'Привет! Я персональный ИИ-Консультант SmartMarket. Готов помочь подобрать идеальный товар, сравнить характеристики или найти максимальную выгоду. Чем могу помочь?',
     },
   ]);
-  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const sessionId = useRef('session-chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const quickPrompts = [
     '🎁 Подобрать подарок',
@@ -226,8 +238,23 @@ export function AIChatbot() {
   }, []);
 
   useEffect(() => {
-    if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 80);
+      return () => clearTimeout(timer);
+    }
   }, [messages, isOpen]);
+
+  // Реактивная обработка промпта с автоотправкой
+  useEffect(() => {
+    if (pendingPrompt && isOpen) {
+      const promptText = pendingPrompt;
+      clearPendingPrompt();
+      sendMessage(promptText);
+    }
+  }, [pendingPrompt, isOpen]);
 
   const sendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
@@ -268,7 +295,7 @@ export function AIChatbot() {
       {/* Floating Trigger Button */}
       <button
         suppressHydrationWarning
-        onClick={() => setIsOpen(true)}
+        onClick={openChat}
         className={`group fixed right-5 sm:right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-zinc-950 pl-4 pr-5 text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-zinc-900 focus:outline-none ring-1 ring-white/15 ${
           isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'
         } ${bottomClass}`}
@@ -316,7 +343,7 @@ export function AIChatbot() {
               {isFullScreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
             <button
-              onClick={() => { setIsOpen(false); setIsFullScreen(false); }}
+              onClick={closeChat}
               className="rounded-xl p-2 text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
               aria-label="Закрыть"
             >
@@ -443,6 +470,7 @@ export function AIChatbot() {
         <div className="border-t border-zinc-100 bg-white p-4">
           <form onSubmit={handleSend} className="flex items-center gap-3">
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}

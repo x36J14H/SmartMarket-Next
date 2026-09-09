@@ -2,36 +2,48 @@
  * Утилиты для разрешения изображений товаров и чистого форматирования цен.
  */
 
-// Каталог проверенных изображений товаров из API 1С для номенклатуры
-const PRODUCT_IMAGE_FALLBACKS: { test: (slug: string, name: string) => boolean; image: string }[] = [
-  // iPhone 15 (из API 1С)
-  {
-    test: (s, n) => s.includes('iphone') || n.toLowerCase().includes('iphone'),
-    image: '/api/1c/catalog/cd077ea2-3370-11f1-8d65-4c2338935cb2/images/04119973-aa1a-11f1-8db7-4c2338935cb1',
-  },
-  // MacBook Air 13 M4 (из API 1С)
-  {
-    test: (s, n) => s.includes('macbook') || n.toLowerCase().includes('macbook'),
-    image: '/api/1c/catalog/a1d96a75-4bd5-11f1-8d84-4c2338935cb2/images/04119974-aa1a-11f1-8db7-4c2338935cb1',
-  },
-];
-
 const DEFAULT_FALLBACK_IMAGE = '/service/image-unavailable.svg';
 
 /**
- * Возвращает проверенную фотографию товара по его идентификатору/слагу и названию.
+ * Возвращает стандартную заглушку при отсутствии фотографии товара в 1С.
  */
-export function getProductFallbackImage(identifier = '', name = ''): string {
-  const cleanId = identifier.toLowerCase();
-  const cleanName = name.toLowerCase();
+export function getProductFallbackImage(_identifier = '', _name = ''): string {
+  return DEFAULT_FALLBACK_IMAGE;
+}
 
-  for (const item of PRODUCT_IMAGE_FALLBACKS) {
-    if (item.test(cleanId, cleanName)) {
-      return item.image;
-    }
+/**
+ * Санитизирует URL фотографии товара:
+ * - устраняет дублирование пути вида /api/1c/catalog/.../images//api/1c/...
+ * - преобразует сырой fileId в /api/1c/catalog/:productId/images/:fileId
+ * - при отсутствии изображения подставляет fallback
+ */
+export function sanitizeProductImageUrl(
+  productId: string,
+  slug = '',
+  name = '',
+  rawUrl?: string | null
+): string {
+  if (!rawUrl || typeof rawUrl !== 'string') {
+    return getProductFallbackImage(slug || productId, name);
   }
 
-  return DEFAULT_FALLBACK_IMAGE;
+  let cleaned = rawUrl.trim();
+  if (!cleaned || cleaned.includes('image-unavailable.svg')) {
+    return getProductFallbackImage(slug || productId, name);
+  }
+
+  // Если URL был ошибочно склеен/продублирован
+  const lastApiIndex = cleaned.lastIndexOf('/api/1c/catalog/');
+  if (lastApiIndex > 0) {
+    cleaned = cleaned.substring(lastApiIndex);
+  }
+
+  // Если это не абсолютный URL и не локальный путь, считаем это сырым fileId
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://') && !cleaned.startsWith('/')) {
+    cleaned = `/api/1c/catalog/${productId}/images/${cleaned}`;
+  }
+
+  return cleaned;
 }
 
 /**
@@ -40,7 +52,7 @@ export function getProductFallbackImage(identifier = '', name = ''): string {
  */
 export function getProductImage(identifier = '', name = '', raw1cImage?: string): string {
   if (raw1cImage && !raw1cImage.includes('image-unavailable.svg')) {
-    return raw1cImage;
+    return sanitizeProductImageUrl(identifier, identifier, name, raw1cImage);
   }
   return getProductFallbackImage(identifier, name);
 }
