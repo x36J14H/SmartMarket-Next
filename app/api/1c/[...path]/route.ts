@@ -8,7 +8,7 @@ const AUTH_HEADER = 'Basic ' + Buffer.from(`${USERNAME}:${PASSWORD}`).toString('
 
 // Разрешённые префиксы путей — защита от SSRF
 // 'catalog' покрывает /catalog/{id}/reviews и /catalog/{id}/questions
-const ALLOWED_PREFIXES = ['catalog', 'categories', 'brands'];
+const ALLOWED_PREFIXES = ['catalog', 'categories', 'brands', 'settings', 'delivery'];
 
 
 

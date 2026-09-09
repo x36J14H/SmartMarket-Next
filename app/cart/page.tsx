@@ -48,8 +48,6 @@ export default function CartPage() {
   const [discountAmount, setDiscountAmount] = React.useState(0);
   const checkoutBtnRef = React.useRef<HTMLButtonElement>(null);
 
-  const FREE_SHIPPING_THRESHOLD = 5000;
-
   // Загружаем актуальные остатки при открытии корзины
   React.useEffect(() => {
     setStockLoading(true);
@@ -141,8 +139,6 @@ export default function CartPage() {
   };
 
   const finalTotal = Math.max(0, displayTotal - discountAmount);
-  const freeShippingProgress = Math.min(100, Math.round((finalTotal / FREE_SHIPPING_THRESHOLD) * 100));
-  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - finalTotal);
 
   const goToCheckout = () => {
     // Сохраняем выбранные id в sessionStorage чтобы checkout знал что оформлять
@@ -329,24 +325,15 @@ export default function CartPage() {
 
         {/* Сайдбар с суммой */}
         <section className="mt-8 sm:mt-16 rounded-3xl bg-white p-6 sm:p-8 lg:col-span-5 lg:mt-0 shadow-sm border border-zinc-200/80 sticky top-24 space-y-6">
-          {/* Free Shipping Progress Bar */}
-          <div className="rounded-2xl bg-gradient-to-br from-emerald-50/80 to-teal-50/50 p-4 border border-emerald-100">
-            <div className="flex items-center justify-between text-xs font-bold text-emerald-950 mb-2">
-              <span>
-                {remainingForFreeShipping === 0
-                  ? '🎉 Бесплатная доставка активна!'
-                  : `До бесплатной доставки: ${formatPrice(remainingForFreeShipping)}`}
-              </span>
-              <span className="tabular-nums font-extrabold">{freeShippingProgress}%</span>
+          {/* Информация о доставке */}
+          <div className="rounded-2xl bg-zinc-50 p-4 border border-zinc-200/80">
+            <div className="flex items-center justify-between text-xs font-bold text-zinc-900 mb-1">
+              <span>Доставка по всей России</span>
+              <span className="text-emerald-600 font-extrabold">Почта России & Курьер</span>
             </div>
-            <div className="h-2 w-full rounded-full bg-emerald-200/60 overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${freeShippingProgress}%` }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-              />
-            </div>
+            <p className="text-xs text-zinc-500 font-medium">
+              Точная стоимость и сроки рассчитываются при указании адреса в оформлении заказа.
+            </p>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-950 font-display tracking-tight">
@@ -410,8 +397,8 @@ export default function CartPage() {
             )}
             <div className="flex items-center justify-between">
               <dt>Доставка</dt>
-              <dd className="font-bold text-emerald-600">
-                {remainingForFreeShipping === 0 ? 'Бесплатно' : 'От 149 ₽'}
+              <dd className="font-bold text-zinc-900">
+                Рассчитывается в чекауте
               </dd>
             </div>
             <div className="flex items-center justify-between border-t border-zinc-100 pt-4 mt-4">

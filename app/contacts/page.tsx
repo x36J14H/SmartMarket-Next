@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useChatStore } from '../../store/chatStore';
+import { settingsService, DEFAULT_STORE_SETTINGS, type StoreSettings } from '../../lib/1c/settings';
 
 export default function ContactsPage() {
   const [formData, setFormData] = useState({
@@ -14,6 +15,11 @@ export default function ContactsPage() {
     message: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  useEffect(() => {
+    settingsService.getSettings().then(setStoreSettings);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,11 +61,8 @@ export default function ContactsPage() {
                     title: 'Телефон горячей линии',
                     content: (
                       <>
-                        <a href="tel:88000000000" className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors block">
-                          8 (800) 000-00-00 <span className="text-xs text-emerald-600 font-normal ml-1">Бесплатно по РФ</span>
-                        </a>
-                        <a href="tel:+74950000000" className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors block">
-                          +7 (495) 000-00-00 <span className="text-xs text-zinc-400 font-normal ml-1">Москва</span>
+                        <a href={`tel:${storeSettings.phone.replace(/[^0-9+]/g, '')}`} className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors block">
+                          {storeSettings.phone} <span className="text-xs text-emerald-600 font-normal ml-1">Бесплатно по РФ</span>
                         </a>
                       </>
                     ),
@@ -69,8 +72,8 @@ export default function ContactsPage() {
                     title: 'Электронная почта',
                     content: (
                       <>
-                        <a href="mailto:support@smartmarket.ru" className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors block">
-                          support@smartmarket.ru
+                        <a href={`mailto:${storeSettings.email}`} className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors block">
+                          {storeSettings.email}
                         </a>
                         <a href="mailto:partners@smartmarket.ru" className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors block">
                           partners@smartmarket.ru (поставщикам)
@@ -83,7 +86,7 @@ export default function ContactsPage() {
                     title: 'Центральный офис и пункт выдачи',
                     content: (
                       <p className="text-zinc-600 font-medium">
-                        г. Москва, ул. Примерная, д. 1, БЦ «Инновация», флагманский шоурум
+                        г. {storeSettings.city}, {storeSettings.address}
                       </p>
                     ),
                   },
@@ -93,7 +96,7 @@ export default function ContactsPage() {
                     content: (
                       <>
                         <p className="text-zinc-600 font-medium">Служба заботы & ИИ: Круглосуточно (24/7)</p>
-                        <p className="text-zinc-500 font-normal text-xs mt-0.5">Шоурум и склад: ежедневно с 09:00 до 21:00</p>
+                        <p className="text-zinc-500 font-normal text-xs mt-0.5">Шоурум и склад: {storeSettings.workingHours}</p>
                       </>
                     ),
                   },

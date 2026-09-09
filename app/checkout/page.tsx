@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
 import { ordersService, type Order, type OutOfStockItem } from '../../lib/1c/orders';
+import { settingsService, type DeliveryOption } from '../../lib/1c/settings';
 import { formatPrice } from '../../lib/utils';
 import { AddressForm } from '../../components/AddressForm';
 import { getProductFallbackImage, sanitizeProductImageUrl } from '../../lib/productMedia';
@@ -16,6 +17,8 @@ import { getProductFallbackImage, sanitizeProductImageUrl } from '../../lib/prod
 const DELIVERY_METHODS: Record<string, string> = {
   courier: 'КурьерскаяДоставка',
   pickup: 'Самовывоз',
+  post_parcel: 'Почта',
+  post_courier: 'Почта_Курьер',
   post: 'Почта',
 };
 
@@ -37,6 +40,10 @@ export default function CheckoutPage() {
   const [outOfStock, setOutOfStock] = useState<OutOfStockItem[]>([]);
   const [showFloatingBar, setShowFloatingBar] = useState(true);
   const payBtnRef = React.useRef<HTMLButtonElement>(null);
+
+  // Доставка: динамические опции из 1С / fallback
+  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
+  const [isCalculatingDelivery, setIsCalculatingDelivery] = useState(false);
 
   // Читаем выбранные id из sessionStorage (установлены на странице корзины)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -63,7 +70,7 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({
     address: '',
     comment: '',
-    delivery: 'courier',
+    delivery: 'post_parcel',
     payment: 'online',
   });
 
@@ -73,6 +80,61 @@ export default function CheckoutPage() {
       setFormData((prev) => ({ ...prev, address: user.delivery_address ?? '' }));
     }
   }, [user]);
+
+  // Запрос расчета доставки при изменении адреса или состава корзины
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsCalculatingDelivery(true);
+
+    // Извлекаем почтовый индекс (6 цифр в адресе)
+    const postalMatch = formData.address.match(/\b\d{6}\b/);
+    const postalCode = postalMatch ? postalMatch[0] : undefined;
+
+    // Извлекаем город из строки адреса (учитываем форматы Dadata: 'г Екатеринбург...', 'Свердловская обл, г. Екатеринбург...')
+    let cleanCity = '';
+    const cityMatch = formData.address.match(/(?:^|,)\s*(?:г\.?|город)\s+([^,]+)/i);
+    if (cityMatch) {
+      cleanCity = cityMatch[1].trim();
+    } else {
+      const parts = formData.address.split(',').map((p) => p.trim()).filter(Boolean);
+      for (const p of parts) {
+        const withoutIndex = p.replace(/^\d{6}\s*/, '').trim();
+        if (/(?:обл|край|автономн|район|респ)/i.test(withoutIndex)) continue;
+        const candidate = withoutIndex.replace(/^(г\.?|город)\s*/i, '').trim();
+        if (candidate) {
+          cleanCity = candidate;
+          break;
+        }
+      }
+    }
+
+    settingsService
+      .calculateDelivery(
+        {
+          city: cleanCity,
+          address: formData.address,
+          postalCode,
+          cartTotal: getTotalPrice(),
+        },
+        controller.signal
+      )
+      .then((res) => {
+        setDeliveryOptions(res.options);
+        // Если выбранный способ стал недоступен — переключаем на первый доступный
+        const currentOption = res.options.find((o) => o.id === formData.delivery);
+        if (!currentOption || !currentOption.available) {
+          const firstAvailable = res.options.find((o) => o.available);
+          if (firstAvailable) {
+            setFormData((prev) => ({ ...prev, delivery: firstAvailable.id }));
+          }
+        }
+      })
+      .finally(() => {
+        setIsCalculatingDelivery(false);
+      });
+
+    return () => controller.abort();
+  }, [formData.address, checkoutItems.length]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -88,7 +150,9 @@ export default function CheckoutPage() {
     return () => document.documentElement.classList.remove('has-floating-bar');
   }, [showFloatingBar]);
 
-  const deliveryCost = formData.delivery === 'courier' ? 500 : 0;
+  // Расчет стоимости доставки по выбранной опции
+  const selectedDeliveryOption = deliveryOptions.find((o) => o.id === formData.delivery);
+  const deliveryCost = selectedDeliveryOption ? selectedDeliveryOption.cost : 0;
   const totalToPay = getTotalPrice() + deliveryCost;
 
   if (checkoutItems.length === 0 && !showSuccessModal) {
@@ -324,61 +388,57 @@ export default function CheckoutPage() {
               transition={{ delay: 0.1 }}
               className="rounded-3xl border border-zinc-200/60 bg-white p-6 sm:p-8 shadow-sm ring-1 ring-zinc-200/50"
             >
-              <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight mb-6 sm:mb-8">
-                Способ доставки
-              </h2>
+              <div className="flex items-center justify-between mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
+                  Способ доставки
+                </h2>
+                {isCalculatingDelivery && (
+                  <span className="text-xs font-semibold text-emerald-600 animate-pulse">
+                    Расчёт тарифов...
+                  </span>
+                )}
+              </div>
               <div className="space-y-3 sm:space-y-4">
-                <label className={radioClass(formData.delivery === 'courier')}>
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      name="delivery"
-                      value="courier"
-                      checked={formData.delivery === 'courier'}
-                      onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
-                      className="h-5 w-5 border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <div className="ml-4">
-                      <span className="block text-sm font-bold text-zinc-900">Курьером до двери</span>
-                      <span className="block text-sm font-medium text-zinc-500 mt-0.5">1–2 дня</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-zinc-900">500 ₽</span>
-                </label>
-                <label className={radioClass(formData.delivery === 'pickup')}>
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      name="delivery"
-                      value="pickup"
-                      checked={formData.delivery === 'pickup'}
-                      onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
-                      className="h-5 w-5 border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <div className="ml-4">
-                      <span className="block text-sm font-bold text-zinc-900">Самовывоз из магазина</span>
-                      <span className="block text-sm font-medium text-zinc-500 mt-0.5">Сегодня</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-emerald-600">Бесплатно</span>
-                </label>
-                <label className={radioClass(formData.delivery === 'post')}>
-                  <div className="flex items-center">
-                    <input
-                      type="radio"
-                      name="delivery"
-                      value="post"
-                      checked={formData.delivery === 'post'}
-                      onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
-                      className="h-5 w-5 border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <div className="ml-4">
-                      <span className="block text-sm font-bold text-zinc-900">Почта России</span>
-                      <span className="block text-sm font-medium text-zinc-500 mt-0.5">5–14 дней</span>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-zinc-900">По тарифу</span>
-                </label>
+                {deliveryOptions.map((option) => {
+                  const isSelected = formData.delivery === option.id;
+                  const isAvailable = option.available;
+
+                  return (
+                    <label
+                      key={option.id}
+                      className={`${radioClass(isSelected)} ${
+                        !isAvailable ? 'opacity-50 cursor-not-allowed bg-zinc-50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <input
+                          type="radio"
+                          name="delivery"
+                          value={option.id}
+                          disabled={!isAvailable}
+                          checked={isSelected}
+                          onChange={(e) => setFormData({ ...formData, delivery: e.target.value })}
+                          className="h-5 w-5 border-zinc-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                        />
+                        <div className="ml-4">
+                          <span className="block text-sm font-bold text-zinc-900">
+                            {option.title}
+                          </span>
+                          <span className="block text-xs sm:text-sm font-medium text-zinc-500 mt-0.5">
+                            {option.description} • {option.days}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-sm font-bold whitespace-nowrap ml-3 ${
+                          option.cost === 0 ? 'text-emerald-600' : 'text-zinc-900'
+                        }`}
+                      >
+                        {!isAvailable ? 'Недоступно' : option.cost === 0 ? 'Бесплатно' : `${option.cost} ₽`}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </motion.div>
 

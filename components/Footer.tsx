@@ -2,12 +2,18 @@
 
 import Link from 'next/link';
 import { Mail, Phone, MapPin, Tag, Send, ShieldCheck, CreditCard } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useChatStore } from '../store/chatStore';
+import { settingsService, DEFAULT_STORE_SETTINGS, type StoreSettings } from '../lib/1c/settings';
 
 export function Footer() {
   const [email, setEmail] = useState('');
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  useEffect(() => {
+    settingsService.getSettings().then(setStoreSettings);
+  }, []);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,19 +162,19 @@ export function Footer() {
             <ul className="mt-5 space-y-3.5 text-sm font-medium text-zinc-500">
               <li className="flex items-center gap-2.5">
                 <Phone size={15} className="text-emerald-600 shrink-0" />
-                <a href="tel:88000000000" className="hover:text-emerald-600 font-bold text-zinc-900 transition-colors">
-                  8 (800) 000-00-00
+                <a href={`tel:${storeSettings.phone.replace(/[^0-9+]/g, '')}`} className="hover:text-emerald-600 font-bold text-zinc-900 transition-colors">
+                  {storeSettings.phone}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail size={15} className="text-emerald-600 shrink-0" />
-                <a href="mailto:support@smartmarket.ru" className="hover:text-emerald-600 transition-colors">
-                  support@smartmarket.ru
+                <a href={`mailto:${storeSettings.email}`} className="hover:text-emerald-600 transition-colors">
+                  {storeSettings.email}
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
                 <MapPin size={15} className="text-zinc-400 mt-0.5 shrink-0" />
-                <span className="text-xs text-zinc-500">г. Москва, ул. Примерная, д. 1</span>
+                <span className="text-xs text-zinc-500">г. {storeSettings.city}, {storeSettings.address}</span>
               </li>
             </ul>
           </div>

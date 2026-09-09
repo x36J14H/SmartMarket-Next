@@ -14,6 +14,7 @@ import { formatPrice, pluralizeReviews, pluralizeQuestions } from '../../../lib/
 import { ProductCard } from '../../../components/ProductCard';
 import { fetchProductBySlug, fetchCatalog } from '../../../lib/1c/catalog';
 import { reviewsService } from '../../../lib/1c/reviews';
+import { settingsService, DEFAULT_STORE_SETTINGS, type StoreSettings } from '../../../lib/1c/settings';
 import { ProductReviews } from '../../../components/ProductReviews';
 import { ProductQuestions } from '../../../components/ProductQuestions';
 import { Product } from '../../../types';
@@ -37,6 +38,11 @@ export default function ProductPage() {
     questionsTotal: 0,
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  useEffect(() => {
+    settingsService.getSettings().then(setStoreSettings);
+  }, []);
 
 
   useEffect(() => {
@@ -425,23 +431,27 @@ export default function ProductPage() {
                   <MapPin size={18} className="text-zinc-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-zinc-950">Москва и МО</p>
+                  <p className="text-sm font-bold text-zinc-950">г. {storeSettings.city} и регионы РФ</p>
                   <p className="text-xs font-normal text-zinc-400 mt-0.5">Прямая отгрузка со склада SmartMarket</p>
                 </div>
               </div>
               <div className="flex justify-between items-center gap-4 pt-3.5 border-t border-zinc-100">
                 <div>
                   <p className="text-xs sm:text-sm font-bold text-zinc-900">Курьерская доставка</p>
-                  <p className="text-xs font-medium text-emerald-600 mt-0.5">Завтра, до двери</p>
+                  <p className="text-xs font-medium text-emerald-600 mt-0.5">До двери, от 1 дня</p>
                 </div>
-                <span className="text-xs font-bold text-zinc-900 bg-zinc-100 px-2.5 py-1 rounded-lg">149 ₽</span>
+                <span className="text-xs font-bold text-zinc-900 bg-zinc-100 px-2.5 py-1 rounded-lg">
+                  от {storeSettings.courierBaseTariff} ₽
+                </span>
               </div>
               <div className="flex justify-between items-center gap-4 pt-3.5 border-t border-zinc-100">
                 <div>
-                  <p className="text-xs sm:text-sm font-bold text-zinc-900">Пункты выдачи (СДЭК, Яндекс)</p>
-                  <p className="text-xs font-medium text-emerald-600 mt-0.5">1-2 дня</p>
+                  <p className="text-xs sm:text-sm font-bold text-zinc-900">Почта России</p>
+                  <p className="text-xs font-medium text-emerald-600 mt-0.5">В отделение, от 1 дня</p>
                 </div>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">Бесплатно</span>
+                <span className="text-xs font-bold text-zinc-900 bg-zinc-100 px-2.5 py-1 rounded-lg">
+                  от 199 ₽
+                </span>
               </div>
               <div className="flex gap-3.5 pt-3.5 border-t border-zinc-100">
                 <div className="w-10 h-10 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
