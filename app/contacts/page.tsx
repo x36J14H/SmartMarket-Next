@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { MapPin, Phone, Mail, Clock, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -231,6 +232,12 @@ export default function ContactsPage() {
                   <Send size={16} />
                   <span>Отправить обращение</span>
                 </button>
+                <p className="text-center text-[11px] text-zinc-400 font-normal leading-normal">
+                  Нажимая кнопку, вы соглашаетесь с{' '}
+                  <Link href="/privacy" className="underline hover:text-zinc-600 transition-colors">
+                    Политикой обработки персональных данных
+                  </Link>
+                </p>
               </form>
             )}
           </motion.div>

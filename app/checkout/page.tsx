@@ -588,8 +588,15 @@ export default function CheckoutPage() {
                 'Оформить заказ'
               )}
             </button>
-            <p className="mt-4 sm:mt-6 text-center text-[10px] sm:text-xs font-medium text-zinc-500">
-              Нажимая кнопку, вы соглашаетесь с условиями обработки персональных данных
+            <p className="mt-4 sm:mt-6 text-center text-[10px] sm:text-xs font-medium text-zinc-500 leading-relaxed">
+              Нажимая кнопку, вы соглашаетесь с{' '}
+              <Link href="/privacy" target="_blank" className="underline hover:text-zinc-800 transition-colors">
+                Политикой обработки персональных данных
+              </Link>{' '}
+              и{' '}
+              <Link href="/terms" target="_blank" className="underline hover:text-zinc-800 transition-colors">
+                Пользовательским соглашением
+              </Link>
             </p>
           </div>
         </section>
@@ -619,6 +626,12 @@ export default function CheckoutPage() {
                 {isSubmitting ? '...' : 'Оформить'}
               </button>
             </div>
+            <p className="mt-1.5 text-center text-[10px] text-zinc-400">
+              Нажимая кнопку, вы принимаете{' '}
+              <Link href="/privacy" target="_blank" className="underline hover:text-zinc-600">
+                Политику обработки данных
+              </Link>
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

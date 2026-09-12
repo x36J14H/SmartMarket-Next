@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { X, Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { authService } from '../lib/1c/auth';
@@ -203,6 +204,16 @@ export function AuthModal({ onClose }: Props) {
                 <PasswordStrengthMeter password={password} />
                 {error && <ErrorMsg text={error} />}
                 <SubmitButton loading={loading} label="Зарегистрироваться" />
+                <p className="text-center text-[11px] text-zinc-400 font-normal leading-normal">
+                  Нажимая «Зарегистрироваться», вы соглашаетесь с{' '}
+                  <Link href="/privacy" onClick={onClose} className="underline hover:text-zinc-600 transition-colors">
+                    Политикой обработки персональных данных
+                  </Link>{' '}
+                  и{' '}
+                  <Link href="/terms" onClick={onClose} className="underline hover:text-zinc-600 transition-colors">
+                    Пользовательским соглашением
+                  </Link>
+                </p>
               </form>
               <p className="mt-4 text-center text-sm text-zinc-500">
                 Уже есть аккаунт?{' '}

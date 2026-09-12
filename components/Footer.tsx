@@ -44,25 +44,33 @@ export function Footer() {
               </p>
             </div>
 
-            <form onSubmit={handleSubscribe} className="flex w-full max-w-md items-center gap-2">
-              <div className="relative flex-1">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ваш рабочий email..."
-                  className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-                />
-              </div>
-              <button
-                type="submit"
-                className="shimmer-btn flex items-center gap-1.5 rounded-2xl bg-zinc-950 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-zinc-800 active:scale-95 transition-all shrink-0"
-              >
-                <span>Подписаться</span>
-                <Send size={13} />
-              </button>
-            </form>
+            <div className="w-full max-w-md">
+              <form onSubmit={handleSubscribe} className="flex w-full items-center gap-2">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Ваш рабочий email..."
+                    className="w-full rounded-2xl border border-zinc-200 bg-white py-3 pl-10 pr-4 text-xs sm:text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="shimmer-btn flex items-center gap-1.5 rounded-2xl bg-zinc-950 px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-zinc-800 active:scale-95 transition-all shrink-0"
+                >
+                  <span>Подписаться</span>
+                  <Send size={13} />
+                </button>
+              </form>
+              <p className="mt-2 text-[11px] text-zinc-400 font-normal leading-tight text-center md:text-left">
+                Нажимая «Подписаться», вы соглашаетесь с{' '}
+                <Link href="/privacy" className="underline hover:text-zinc-700 transition-colors">
+                  Политикой обработки персональных данных
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -124,6 +132,11 @@ export function Footer() {
                   Мои заказы
                 </Link>
               </li>
+              <li>
+                <Link href="/returns" className="hover:text-emerald-600 transition-colors">
+                  Возврат и гарантия
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -141,6 +154,11 @@ export function Footer() {
               <li>
                 <Link href="/contacts" className="hover:text-emerald-600 transition-colors">
                   Контакты и адрес
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-emerald-600 transition-colors">
+                  Пользовательское соглашение
                 </Link>
               </li>
               <li>
@@ -185,13 +203,16 @@ export function Footer() {
           <p>
             &copy; {new Date().getFullYear()} SmartMarket. Все права защищены. Интернет-магазин оригинальной электроники.
           </p>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-zinc-900 transition-colors">
+          <div className="flex flex-wrap gap-6 items-center justify-center sm:justify-end">
+            <Link href="/privacy" className="hover:text-zinc-900 transition-colors">
               Политика конфиденциальности
-            </a>
-            <a href="#" className="hover:text-zinc-900 transition-colors">
-              Условия обслуживания
-            </a>
+            </Link>
+            <Link href="/terms" className="hover:text-zinc-900 transition-colors">
+              Пользовательское соглашение
+            </Link>
+            <Link href="/returns" className="hover:text-zinc-900 transition-colors">
+              Условия возврата и гарантии
+            </Link>
           </div>
         </div>
       </div>
