@@ -33,6 +33,7 @@ import { ProductCard } from '../components/ProductCard';
 import { useProductsStore } from '../store/productsStore';
 import { useChatStore } from '../store/chatStore';
 import { fetchCatalog } from '../lib/1c/catalog';
+import { fetchBanners, type BannerData } from '../lib/1c/banners';
 import { formatPrice } from '../lib/utils';
 import type { Product } from '../types';
 
@@ -106,76 +107,43 @@ const FALLBACK_PROMO_PRODUCTS: Product[] = [
   },
 ];
 
-interface HeroSlide {
-  id: number;
-  productId: string;
-  tag: string;
-  tagIcon: typeof Flame;
-  title: string;
-  model: string;
-  subtitle: string;
-  price: number;
-  oldPrice: number;
-  discountLabel: string;
-  specs: string[];
-  imageUrl: string;
-  imageAlt: string;
-  rating: string;
-  reviewCount: string;
-  stockStatus: string;
-  ctaPrimary: { text: string; href: string };
-  ctaSecondary: { text: string; href: string };
+interface BannerVisualTheme {
   gradient: string;
   accentGlow: string;
   badgeColor: string;
+  tagIcon: typeof Flame;
 }
 
-const HERO_SLIDES: HeroSlide[] = [
+const BANNER_THEMES: BannerVisualTheme[] = [
   {
-    id: 1,
-    productId: 'cd077ea2-3370-11f1-8d65-4c2338935cb2',
-    tag: 'Хит продаж • Apple',
-    tagIcon: Flame,
-    title: 'Смартфон Apple',
-    model: 'iPhone 15 128 ГБ',
-    subtitle: 'Dynamic Island, передовая основная камера 48 Мп и надежный корпус с матовым стеклом.',
-    price: 52500,
-    oldPrice: 58990,
-    discountLabel: 'Выгода 6 490 ₽',
-    specs: ['Камера 48 Мп', 'Dynamic Island', 'Разъем USB-C', 'Гарантия 1 год'],
-    imageUrl: '/api/1c/catalog/cd077ea2-3370-11f1-8d65-4c2338935cb2/images/04119973-aa1a-11f1-8db7-4c2338935cb1',
-    imageAlt: 'Apple Смартфон iPhone 15 SIM+eSIM 128 ГБ, синий',
-    rating: '4.9',
-    reviewCount: '128',
-    stockStatus: 'В наличии: 3 шт.',
-    ctaPrimary: { text: 'Купить', href: '/product/apple-smartfon-iphone-15-simesim-128-gb-siniy' },
-    ctaSecondary: { text: 'Все смартфоны', href: '/catalog/elektronika' },
     gradient: 'from-[#f4f2ee] via-[#f7f6f2] to-white',
     accentGlow: 'bg-amber-500/10',
     badgeColor: 'bg-zinc-950 text-white',
+    tagIcon: Flame,
   },
   {
-    id: 2,
-    productId: 'a1d96a75-4bd5-11f1-8d84-4c2338935cb2',
-    tag: 'Новинка • Ноутбуки',
-    tagIcon: Zap,
-    title: 'Ноутбук Apple',
-    model: 'MacBook Air 13 M4',
-    subtitle: 'Флагманская скорость процессора Apple M4, дисплей Liquid Retina и до 18 часов автономной работы.',
-    price: 125000,
-    oldPrice: 139990,
-    discountLabel: 'Выгода 14 990 ₽',
-    specs: ['Чип Apple M4', '16 ГБ RAM / 256 ГБ SSD', 'Liquid Retina 13.6"', 'До 18 ч работы'],
-    imageUrl: '/api/1c/catalog/a1d96a75-4bd5-11f1-8d84-4c2338935cb2/images/04119974-aa1a-11f1-8db7-4c2338935cb1',
-    imageAlt: 'Ноутбук Apple MacBook Air 13 M4 серый космос',
-    rating: '5.0',
-    reviewCount: '42',
-    stockStatus: 'В наличии: 1 шт.',
-    ctaPrimary: { text: 'Купить', href: '/product/noutbuk-apple-macbook-air-13-m4-16-256-gb-seryy-kosmos' },
-    ctaSecondary: { text: 'Все ноутбуки', href: '/catalog/elektronika' },
     gradient: 'from-[#f0f4f8] via-[#f4f7fb] to-white',
     accentGlow: 'bg-sky-500/10',
     badgeColor: 'bg-sky-700 text-white',
+    tagIcon: Zap,
+  },
+  {
+    gradient: 'from-[#f0fdf4] via-[#f7fef9] to-white',
+    accentGlow: 'bg-emerald-500/10',
+    badgeColor: 'bg-emerald-800 text-white',
+    tagIcon: Sparkles,
+  },
+  {
+    gradient: 'from-[#fdf2f8] via-[#fdf4f9] to-white',
+    accentGlow: 'bg-rose-500/10',
+    badgeColor: 'bg-rose-700 text-white',
+    tagIcon: Percent,
+  },
+  {
+    gradient: 'from-[#f5f3ff] via-[#f8f6ff] to-white',
+    accentGlow: 'bg-violet-500/10',
+    badgeColor: 'bg-violet-700 text-white',
+    tagIcon: Star,
   },
 ];
 
@@ -193,9 +161,30 @@ export default function HomePage() {
   const { categories } = useProductsStore();
   const [popularProducts, setPopularProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [banners, setBanners] = useState<BannerData[]>([]);
+  const [bannersLoading, setBannersLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'hits' | 'new'>('all');
   const [activeSlide, setActiveSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Загрузка промо-баннеров из 1С (без хардкода)
+  useEffect(() => {
+    let isMounted = true;
+    fetchBanners()
+      .then((data) => {
+        if (isMounted) {
+          setBanners(data);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setBannersLoading(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Загрузка каталога с автоматическим fallback
   useEffect(() => {
@@ -213,32 +202,41 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Автопрокрутка слайдера промо-баннеров (5.5 сек)
-  useEffect(() => {
-    if (isHovered) return;
-    const interval = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 5500);
-    return () => clearInterval(interval);
-  }, [isHovered]);
-
-  // Актуализируем данные слайдов из 1С при наличии каталога
-  const activeSlides = HERO_SLIDES.map((slide) => {
-    const liveProd = popularProducts.find(
-      (p) => p.id === slide.productId || p.slug === slide.ctaPrimary.href.replace('/product/', '')
-    );
-    if (!liveProd) return slide;
+  // Формируем слайды на основе данных из 1С и визуальной палитры фронта
+  const activeSlides = banners.map((b, idx) => {
+    const theme = BANNER_THEMES[idx % BANNER_THEMES.length];
+    const TagIcon = theme.tagIcon;
     return {
-      ...slide,
-      price: liveProd.price || slide.price,
-      oldPrice: liveProd.oldPrice || slide.oldPrice,
-      stockStatus: liveProd.inStock > 0 ? `В наличии: ${liveProd.inStock} шт.` : 'Под заказ',
-      imageUrl:
-        liveProd.imageUrl && !liveProd.imageUrl.includes('image-unavailable.svg')
-          ? liveProd.imageUrl
-          : slide.imageUrl,
+      id: b.id,
+      productId: b.productId,
+      tag: b.tag || 'Акция',
+      tagIcon: TagIcon,
+      title: b.title,
+      model: b.model,
+      subtitle: b.subtitle,
+      price: b.price,
+      oldPrice: b.oldPrice,
+      discountLabel: b.discountLabel,
+      specs: b.specs || [],
+      imageUrl: b.imageUrl || '/service/image-unavailable.svg',
+      imageAlt: b.title ? `${b.title} ${b.model}` : 'Акционный товар',
+      stockStatus: 'В наличии',
+      ctaPrimary: b.ctaPrimary || { text: 'Купить', href: '/catalog' },
+      ctaSecondary: b.ctaSecondary || { text: 'Все предложения', href: '/catalog' },
+      gradient: theme.gradient,
+      accentGlow: theme.accentGlow,
+      badgeColor: theme.badgeColor,
     };
   });
+
+  // Автопрокрутка слайдера промо-баннеров (5.5 сек)
+  useEffect(() => {
+    if (isHovered || activeSlides.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % activeSlides.length);
+    }, 5500);
+    return () => clearInterval(interval);
+  }, [isHovered, activeSlides.length]);
 
   const currentHeroSlide = activeSlides[activeSlide] || activeSlides[0];
   const filteredProducts = popularProducts.filter((p, index) => {
@@ -252,7 +250,7 @@ export default function HomePage() {
       {/* 1. Премиальный коммерческий Hero-блок (Слайдер + Витрина акций + Трастовая полоса) */}
       <section className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         {/* Панель быстрых категорий (Quick Category Bar с векторными иконками) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 sm:mb-6 scrollbar-hide text-xs sm:text-sm font-semibold">
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 sm:mb-6 scrollbar-hide text-xs sm:text-sm font-semibold -mx-4 px-4 sm:mx-0 sm:px-0">
           {QUICK_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
@@ -280,216 +278,260 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Флагманский промо-слайдер */}
-        <div
-          className="relative overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm flex flex-col justify-between min-h-[380px] sm:min-h-[420px] lg:min-h-[440px] xl:min-h-[460px] w-full"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentHeroSlide.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
-              className={`absolute inset-0 flex flex-col justify-between bg-gradient-to-br ${currentHeroSlide.gradient}`}
-            >
-              {/* Рассеянные световые ореолы */}
-              <div className={`absolute top-0 right-1/4 h-72 w-72 lg:h-96 lg:w-96 rounded-full ${currentHeroSlide.accentGlow} blur-3xl pointer-events-none`} />
-              <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-zinc-400/5 blur-3xl pointer-events-none" />
+        {/* Флагманский промо-слайдер (управляется из 1С) */}
+        {bannersLoading && (
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-200/80 bg-gradient-to-br from-zinc-100 to-zinc-50 shadow-sm min-h-[460px] sm:min-h-[480px] md:min-h-[440px] xl:min-h-[460px] w-full animate-pulse flex flex-col justify-between p-6 sm:p-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center flex-1">
+              <div className="md:col-span-7 flex flex-col gap-4">
+                <div className="h-6 w-32 rounded-full bg-zinc-200" />
+                <div className="h-10 w-3/4 rounded-2xl bg-zinc-200" />
+                <div className="h-5 w-1/2 rounded-xl bg-zinc-200" />
+                <div className="h-12 w-44 rounded-2xl bg-zinc-200 mt-2" />
+              </div>
+              <div className="md:col-span-5 flex justify-center">
+                <div className="h-60 w-60 rounded-3xl bg-zinc-200/70" />
+              </div>
+            </div>
+            <div className="h-3 w-28 rounded-full bg-zinc-200 mt-4" />
+          </div>
+        )}
 
-              {/* Двухколоночный контент слайда */}
-              <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-center p-5 sm:p-8 lg:p-10 flex-1">
-                {/* Левая сторона: информация об устройстве, цены и кнопки */}
-                <div className="md:col-span-7 flex flex-col justify-center">
-                  {/* Бейдж акции и гарантия */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide shadow-2xs ${currentHeroSlide.badgeColor}`}>
-                      <currentHeroSlide.tagIcon size={13} className="text-amber-400" />
-                      <span>{currentHeroSlide.tag}</span>
-                    </span>
-                    <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-zinc-600 border border-zinc-200/80 shadow-2xs backdrop-blur-xs">
-                      <CheckCircle2 size={13} className="text-emerald-500" />
-                      Официальная поставка
-                    </span>
-                  </div>
+        {!bannersLoading && activeSlides.length > 0 && currentHeroSlide && (
+          <div
+            className="relative overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-sm flex flex-col justify-between min-h-[460px] sm:min-h-[480px] md:min-h-[440px] xl:min-h-[460px] w-full"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentHeroSlide.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className={`relative md:absolute md:inset-0 flex flex-col justify-between bg-gradient-to-br ${currentHeroSlide.gradient} w-full`}
+              >
+                {/* Рассеянные световые ореолы */}
+                <div className={`absolute top-0 right-1/4 h-72 w-72 lg:h-96 lg:w-96 rounded-full ${currentHeroSlide.accentGlow} blur-3xl pointer-events-none`} />
+                <div className="absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-zinc-400/5 blur-3xl pointer-events-none" />
 
-                  {/* Заголовок и модель */}
-                  <div className="mt-3">
-                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-600">
-                      {currentHeroSlide.title}
-                    </span>
-                    <h1 className="mt-0.5 font-display text-2xl sm:text-3xl lg:text-[34px] xl:text-[40px] font-black tracking-tight text-zinc-950 leading-[1.1]">
-                      {currentHeroSlide.model}
-                    </h1>
-                    <p className="mt-2 text-xs sm:text-sm lg:text-base text-zinc-600 font-normal leading-relaxed line-clamp-2 max-w-xl">
-                      {currentHeroSlide.subtitle}
-                    </p>
-                  </div>
-
-                  {/* Блок цен и выгоды */}
-                  <div className="mt-3.5 flex flex-wrap items-baseline gap-2.5">
-                    <span className="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-zinc-950">
-                      {formatPrice(currentHeroSlide.price)}
-                    </span>
-                    {currentHeroSlide.oldPrice > currentHeroSlide.price && (
-                      <>
-                        <span className="text-sm sm:text-base lg:text-lg font-semibold text-zinc-400 line-through">
-                          {formatPrice(currentHeroSlide.oldPrice)}
-                        </span>
-                        <span className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-black text-rose-600 border border-rose-200/80">
-                          {currentHeroSlide.discountLabel}
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Микро-чипы характеристик */}
-                  <div className="mt-3.5 flex flex-wrap gap-1.5">
-                    {currentHeroSlide.specs.map((spec) => (
-                      <span
-                        key={spec}
-                        className="inline-flex items-center rounded-lg bg-white/95 px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-zinc-700 border border-zinc-200/70 shadow-2xs"
-                      >
-                        ✓ {spec}
+                {/* Контент слайда */}
+                <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-10 items-center p-4 sm:p-8 lg:p-10 flex-1">
+                  {/* Левая сторона: информация об устройстве, цены и кнопки */}
+                  <div className="md:col-span-7 flex flex-col justify-center">
+                    {/* Бейдж акции и гарантия */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide shadow-2xs ${currentHeroSlide.badgeColor}`}>
+                        <currentHeroSlide.tagIcon size={13} className="text-amber-400" />
+                        <span>{currentHeroSlide.tag}</span>
                       </span>
-                    ))}
-                  </div>
-
-                  {/* Кнопки призыва к действию (CTA) */}
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
-                    <Link
-                      href={currentHeroSlide.ctaPrimary.href}
-                      className="shimmer-btn inline-flex items-center justify-center rounded-2xl bg-zinc-950 px-6 sm:px-8 py-3.5 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <ShoppingBag size={16} className="mr-2 text-emerald-400" />
-                      <span>{currentHeroSlide.ctaPrimary.text}</span>
-                      <ArrowRight size={15} className="ml-2" />
-                    </Link>
-
-                    <Link
-                      href={currentHeroSlide.ctaSecondary.href}
-                      className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-bold text-zinc-800 border border-zinc-200/80 hover:bg-zinc-50 hover:border-zinc-300 transition-all shadow-2xs"
-                    >
-                      <span>{currentHeroSlide.ctaSecondary.text}</span>
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Правая сторона: рендер устройства с объемной тенью и аккуратными бейджами */}
-                <div className="md:col-span-5 relative flex items-center justify-center py-4 md:py-0">
-                  <div className="relative h-60 w-60 sm:h-72 sm:w-72 md:h-72 md:w-72 lg:h-84 lg:w-84 xl:h-96 xl:w-96 transition-transform duration-500 hover:scale-105">
-                    <Image
-                      src={currentHeroSlide.imageUrl}
-                      alt={currentHeroSlide.imageAlt}
-                      fill
-                      priority
-                      sizes="(max-width: 768px) 280px, (max-width: 1200px) 380px, 450px"
-                      className="object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)] rounded-2xl"
-                    />
-
-                    {/* Плавающий бейдж рейтинга (привязан к изображению) */}
-                    <div className="absolute top-1 right-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-bold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
-                      <Star size={12} className="fill-amber-400 text-amber-400" />
-                      <span>{currentHeroSlide.rating}</span>
-                      <span className="text-zinc-400 font-normal text-[10px]">({currentHeroSlide.reviewCount})</span>
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-zinc-600 border border-zinc-200/80 shadow-2xs backdrop-blur-xs">
+                        <CheckCircle2 size={13} className="text-emerald-500" />
+                        Официальная поставка
+                      </span>
                     </div>
 
-                    {/* Плавающий бейдж наличия (привязан к изображению) */}
-                    <div className="absolute bottom-1 left-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-semibold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[11px] font-bold text-zinc-700">{currentHeroSlide.stockStatus}</span>
+                    {/* Заголовок и модель */}
+                    <div className="mt-2.5 sm:mt-3">
+                      {currentHeroSlide.title && (
+                        <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-emerald-600">
+                          {currentHeroSlide.title}
+                        </span>
+                      )}
+                      <h1 className="mt-0.5 font-display text-xl sm:text-3xl lg:text-[34px] xl:text-[40px] font-black tracking-tight text-zinc-950 leading-[1.22] sm:leading-[1.15]">
+                        {currentHeroSlide.model}
+                      </h1>
+                      {currentHeroSlide.subtitle && (
+                        <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm lg:text-base text-zinc-600 font-normal leading-relaxed line-clamp-2 max-w-xl">
+                          {currentHeroSlide.subtitle}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Фото товара для мобильных экранов (до md) */}
+                    <div className="md:hidden relative my-3 flex items-center justify-center">
+                      <div className="relative h-44 w-44 sm:h-52 sm:w-52">
+                        <Image
+                          src={currentHeroSlide.imageUrl}
+                          alt={currentHeroSlide.imageAlt}
+                          fill
+                          priority
+                          sizes="(max-width: 768px) 220px, 350px"
+                          className="object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.12)] rounded-2xl"
+                        />
+                        <div className="absolute bottom-0 left-0 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2 py-0.5 text-[10px] font-bold text-zinc-700 shadow-sm border border-zinc-200/80 backdrop-blur-md">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>{currentHeroSlide.stockStatus}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Блок цен и выгоды */}
+                    {currentHeroSlide.price > 0 && (
+                      <div className="mt-2.5 sm:mt-3.5 flex flex-wrap items-baseline gap-2 sm:gap-2.5">
+                        <span className="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-zinc-950">
+                          {formatPrice(currentHeroSlide.price)}
+                        </span>
+                        {currentHeroSlide.oldPrice > currentHeroSlide.price && (
+                          <>
+                            <span className="text-sm sm:text-base lg:text-lg font-semibold text-zinc-400 line-through">
+                              {formatPrice(currentHeroSlide.oldPrice)}
+                            </span>
+                            {currentHeroSlide.discountLabel && (
+                              <span className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-black text-rose-600 border border-rose-200/80">
+                                {currentHeroSlide.discountLabel}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Микро-чипы характеристик */}
+                    {currentHeroSlide.specs && currentHeroSlide.specs.length > 0 && (
+                      <div className="mt-2.5 sm:mt-3.5 flex flex-wrap gap-1.5">
+                        {currentHeroSlide.specs.map((spec) => (
+                          <span
+                            key={spec}
+                            className="inline-flex items-center rounded-lg bg-white/95 px-2.5 py-1 text-[11px] sm:text-xs font-semibold text-zinc-700 border border-zinc-200/70 shadow-2xs"
+                          >
+                            ✓ {spec}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Кнопки призыва к действию (CTA) */}
+                    <div className="mt-4 sm:mt-5 flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
+                      <Link
+                        href={currentHeroSlide.ctaPrimary.href}
+                        className="shimmer-btn inline-flex items-center justify-center rounded-2xl bg-zinc-950 px-6 sm:px-8 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
+                      >
+                        <ShoppingBag size={16} className="mr-2 text-emerald-400" />
+                        <span>{currentHeroSlide.ctaPrimary.text}</span>
+                        <ArrowRight size={15} className="ml-2" />
+                      </Link>
+
+                      {currentHeroSlide.ctaSecondary && currentHeroSlide.ctaSecondary.href && (
+                        <Link
+                          href={currentHeroSlide.ctaSecondary.href}
+                          className="inline-flex items-center justify-center rounded-2xl bg-white/95 px-5 sm:px-6 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-zinc-800 border border-zinc-200/80 hover:bg-zinc-50 hover:border-zinc-300 transition-all shadow-2xs w-full sm:w-auto"
+                        >
+                          <span>{currentHeroSlide.ctaSecondary.text}</span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Правая сторона: изображение с объемной тенью (Desktop) */}
+                  <div className="hidden md:flex md:col-span-5 relative items-center justify-center py-4 md:py-0">
+                    <div className="relative h-60 w-60 sm:h-72 sm:w-72 md:h-72 md:w-72 lg:h-84 lg:w-84 xl:h-96 xl:w-96 transition-transform duration-500 hover:scale-105">
+                      <Image
+                        src={currentHeroSlide.imageUrl}
+                        alt={currentHeroSlide.imageAlt}
+                        fill
+                        priority
+                        sizes="(max-width: 768px) 280px, (max-width: 1200px) 380px, 450px"
+                        className="object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.12)] rounded-2xl"
+                      />
+
+                      {/* Плавающий бейдж наличия */}
+                      <div className="absolute bottom-1 left-1 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 text-xs font-semibold text-zinc-800 shadow-md border border-zinc-200/80 backdrop-blur-md">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[11px] font-bold text-zinc-700">{currentHeroSlide.stockStatus}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Нижняя полоса управления слайдером */}
-              <div className="relative z-10 flex items-center justify-between border-t border-zinc-200/60 px-5 sm:px-8 py-2.5 sm:py-3 bg-white/60 backdrop-blur-xs">
-                {/* Индикаторы слайдов */}
-                <div className="flex items-center gap-2">
-                  {activeSlides.map((slide, idx) => (
-                    <button
-                      key={slide.id}
-                      onClick={() => setActiveSlide(idx)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        activeSlide === idx
-                          ? 'w-7 bg-zinc-950'
-                          : 'w-2 bg-zinc-300 hover:bg-zinc-400'
-                      }`}
-                      aria-label={`Перейти к слайду ${idx + 1}`}
-                    />
-                  ))}
-                </div>
+                {/* Нижняя полоса управления слайдером */}
+                {activeSlides.length > 1 && (
+                  <div className="relative z-10 flex items-center justify-between border-t border-zinc-200/60 px-4 sm:px-8 py-2.5 sm:py-3 bg-white/60 backdrop-blur-xs">
+                    {/* Индикаторы слайдов */}
+                    <div className="flex items-center gap-2">
+                      {activeSlides.map((slide, idx) => (
+                        <button
+                          key={slide.id}
+                          onClick={() => setActiveSlide(idx)}
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            activeSlide === idx
+                              ? 'w-7 bg-zinc-950'
+                              : 'w-2 bg-zinc-300 hover:bg-zinc-400'
+                          }`}
+                          aria-label={`Перейти к слайду ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
 
-                {/* Кнопки переключения */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() =>
-                      setActiveSlide((prev) =>
-                        prev === 0 ? activeSlides.length - 1 : prev - 1
-                      )
-                    }
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
-                    aria-label="Предыдущий слайд"
-                  >
-                    <ChevronLeft size={15} />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setActiveSlide((prev) => (prev + 1) % activeSlides.length)
-                    }
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
-                    aria-label="Следующий слайд"
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+                    {/* Кнопки переключения */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() =>
+                          setActiveSlide((prev) =>
+                            prev === 0 ? activeSlides.length - 1 : prev - 1
+                          )
+                        }
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
+                        aria-label="Предыдущий слайд"
+                      >
+                        <ChevronLeft size={15} />
+                      </button>
+                      <button
+                        onClick={() =>
+                          setActiveSlide((prev) => (prev + 1) % activeSlides.length)
+                        }
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-zinc-700 shadow-xs border border-zinc-200 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer"
+                        aria-label="Следующий слайд"
+                      >
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Полоса гарантий и сервиса магазина (Trust Strip) */}
-        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-white border border-zinc-200/80 p-4 shadow-2xs">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <ShieldCheck size={20} />
+        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 rounded-2xl bg-white border border-zinc-200/80 p-3 sm:p-4 shadow-2xs">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <ShieldCheck size={18} className="sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-xs sm:text-sm font-bold text-zinc-950">Официальная гарантия</h4>
-              <p className="text-[11px] text-zinc-500 mt-0.5">1 год на всю технику и гаджеты</p>
+              <p className="text-[10px] sm:text-[11px] text-zinc-500 mt-0.5">1 год на всю технику и гаджеты</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl bg-white border border-zinc-200/80 p-4 shadow-2xs">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
-              <Truck size={20} />
+          <div className="flex items-center gap-2.5 sm:gap-3 rounded-2xl bg-white border border-zinc-200/80 p-3 sm:p-4 shadow-2xs">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+              <Truck size={18} className="sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-xs sm:text-sm font-bold text-zinc-950">Доставка за 2 часа</h4>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Курьером или самовывоз со склада</p>
+              <p className="text-[10px] sm:text-[11px] text-zinc-500 mt-0.5">Курьером или самовывоз со склада</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl bg-white border border-zinc-200/80 p-4 shadow-2xs">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Warehouse size={20} />
+          <div className="flex items-center gap-2.5 sm:gap-3 rounded-2xl bg-white border border-zinc-200/80 p-3 sm:p-4 shadow-2xs">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <Warehouse size={18} className="sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-xs sm:text-sm font-bold text-zinc-950">Товары в наличии</h4>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Быстрая отгрузка со склада</p>
+              <p className="text-[10px] sm:text-[11px] text-zinc-500 mt-0.5">Быстрая отгрузка со склада</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl bg-white border border-zinc-200/80 p-4 shadow-2xs">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-              <RotateCcw size={20} />
+          <div className="flex items-center gap-2.5 sm:gap-3 rounded-2xl bg-white border border-zinc-200/80 p-3 sm:p-4 shadow-2xs">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+              <RotateCcw size={18} className="sm:w-5 sm:h-5" />
             </div>
             <div>
               <h4 className="text-xs sm:text-sm font-bold text-zinc-950">Простой возврат</h4>
-              <p className="text-[11px] text-zinc-500 mt-0.5">14 дней без лишних вопросов</p>
+              <p className="text-[10px] sm:text-[11px] text-zinc-500 mt-0.5">14 дней без лишних вопросов</p>
             </div>
           </div>
         </div>

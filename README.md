@@ -1,6 +1,6 @@
 # SmartMarket Frontend (`smartmarket-next`) 🛒✨
 
-Современный фронтенд интернет-магазина на **Next.js 16 (App Router)** с прямой интеграцией с **1С:Предприятие 8.3** и **FastAPI AI Service**.
+Современный фронтенд интернет-магазина на **Next.js 16 (App Router)** с прямой интеграцией с **1С:Предприятие 8.5** и **FastAPI AI Service**.
 
 ---
 

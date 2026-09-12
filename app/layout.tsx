@@ -70,9 +70,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <PwaUpdater />
           <ProductsInitializer />
-          <div className="flex min-h-screen flex-col bg-white text-gray-900">
+          <div className="flex min-h-screen flex-col bg-white text-gray-900 overflow-x-hidden w-full max-w-full">
             <Header />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 overflow-x-hidden w-full">{children}</main>
             <Footer />
             <Toaster position="bottom-right" />
             <AIChatbotWrapper />

@@ -10,6 +10,7 @@ import { useFavoritesStore } from '../store/favoritesStore';
 import { useAuthStore } from '../store/authStore';
 import { AISearchBar } from './AISearchBar';
 import { AuthModal } from './AuthModal';
+import { settingsService, DEFAULT_STORE_SETTINGS, type StoreSettings } from '../lib/1c/settings';
 
 // Отдельный компонент для чтения searchParams (требует Suspense)
 function AuthParamWatcher({ onOpen }: { onOpen: () => void }) {
@@ -38,6 +39,11 @@ export function Header() {
   );
   const favoritesCount = useFavoritesStore((state) => state.favorites.length);
   const { user, isLoading } = useAuthStore();
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  useEffect(() => {
+    settingsService.getSettings().then(setStoreSettings);
+  }, []);
 
   const navLinks = [
     { name: 'Главная', path: '/' },
@@ -59,25 +65,25 @@ export function Header() {
       </Suspense>
 
       <header className="sticky top-0 z-50 w-full border-b border-zinc-200/70 bg-white/85 backdrop-blur-2xl transition-all duration-300 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.03)]">
-        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-3 sm:px-6 lg:px-8">
           {/* Brand Logo & Mobile Toggle */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="rounded-2xl p-2 text-zinc-600 hover:bg-zinc-100/90 md:hidden transition-colors"
+              className="rounded-xl p-1.5 text-zinc-600 hover:bg-zinc-100/90 md:hidden transition-colors"
               aria-label={isMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
             >
               {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
             <Link
               href="/"
-              className="flex items-center gap-2.5 text-xl font-extrabold tracking-tight text-zinc-950 group select-none"
+              className="flex items-center gap-2 text-lg sm:text-xl font-extrabold tracking-tight text-zinc-950 group select-none"
             >
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-md transition-all duration-300 group-hover:scale-105 group-hover:bg-zinc-900">
-                <span className="text-emerald-400 font-display font-black text-lg">S</span>
+              <div className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl sm:rounded-2xl bg-zinc-950 text-white shadow-md transition-all duration-300 group-hover:scale-105 group-hover:bg-zinc-900 shrink-0">
+                <span className="text-emerald-400 font-display font-black text-base sm:text-lg">S</span>
               </div>
               <div className="flex items-center">
-                <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-zinc-950">
+                <span className="font-display font-extrabold text-base sm:text-xl tracking-tight text-zinc-950">
                   Smart<span className="text-emerald-600">Market</span>
                 </span>
               </div>
@@ -112,22 +118,22 @@ export function Header() {
           </nav>
 
           {/* Search, User, Favorites & Cart */}
-          <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3 ml-4">
+          <div className="flex items-center justify-end gap-1 sm:gap-3 ml-auto shrink-0">
             <Suspense fallback={null}>
               <AISearchBar className="hidden sm:flex items-center mx-2 w-full max-w-xs lg:max-w-md" />
             </Suspense>
 
             {/* Profile / Login */}
             {isLoading ? (
-              <div className="h-9 w-9 rounded-2xl bg-zinc-100 animate-pulse" />
+              <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl sm:rounded-2xl bg-zinc-100 animate-pulse" />
             ) : user ? (
               <Link
                 href="/profile"
-                className="group relative flex items-center gap-2 rounded-2xl p-1.5 sm:px-3 sm:py-1.5 text-zinc-700 hover:bg-zinc-100/80 transition-all"
+                className="group relative flex items-center gap-1.5 rounded-xl sm:rounded-2xl p-1 sm:px-3 sm:py-1.5 text-zinc-700 hover:bg-zinc-100/80 transition-all shrink-0"
                 title={user.name}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-xs font-bold text-white shadow-sm ring-2 ring-white">
-                  {user.name ? user.name.charAt(0).toUpperCase() : <UserIcon size={15} />}
+                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                  {user.name ? user.name.charAt(0).toUpperCase() : <UserIcon size={14} />}
                 </div>
                 <span className="hidden xl:inline-block text-xs font-bold text-zinc-800 max-w-[100px] truncate">
                   {user.name}
@@ -136,7 +142,7 @@ export function Header() {
             ) : (
               <button
                 onClick={() => setAuthOpen(true)}
-                className="shimmer-btn flex items-center gap-1.5 rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-zinc-800 hover:shadow-md active:scale-95 transition-all"
+                className="shimmer-btn flex items-center gap-1 rounded-xl sm:rounded-2xl bg-zinc-950 px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold text-white shadow-sm hover:bg-zinc-800 hover:shadow-md active:scale-95 transition-all shrink-0"
               >
                 <span>Войти</span>
               </button>
@@ -145,10 +151,10 @@ export function Header() {
             {/* Favorites Icon */}
             <Link
               href="/favorites"
-              className="relative flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-600 hover:bg-zinc-100 hover:text-rose-500 transition-colors"
+              className="relative flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl text-zinc-600 hover:bg-zinc-100 hover:text-rose-500 transition-colors shrink-0"
               aria-label="Избранное"
             >
-              <Heart size={20} />
+              <Heart size={19} />
               <AnimatePresence>
                 {favoritesCount > 0 && (
                   <motion.span
@@ -156,7 +162,7 @@ export function Header() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white tabular-nums"
+                    className="absolute -right-0.5 -top-0.5 sm:right-1 sm:top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] sm:text-[10px] font-bold text-white shadow-sm ring-2 ring-white tabular-nums"
                   >
                     {favoritesCount}
                   </motion.span>
@@ -167,10 +173,10 @@ export function Header() {
             {/* Cart Icon */}
             <Link
               href="/cart"
-              className="relative flex h-10 w-10 items-center justify-center rounded-2xl text-zinc-600 hover:bg-zinc-100 hover:text-emerald-600 transition-colors"
+              className="relative flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl text-zinc-600 hover:bg-zinc-100 hover:text-emerald-600 transition-colors shrink-0"
               aria-label="Корзина"
             >
-              <ShoppingCart size={20} />
+              <ShoppingCart size={19} />
               <AnimatePresence>
                 {totalItems > 0 && (
                   <motion.span
@@ -178,7 +184,7 @@ export function Header() {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-white tabular-nums"
+                    className="absolute -right-0.5 -top-0.5 sm:right-1 sm:top-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] sm:text-[10px] font-bold text-white shadow-sm ring-2 ring-white tabular-nums"
                   >
                     {totalItems}
                   </motion.span>
@@ -225,7 +231,15 @@ export function Header() {
               </nav>
 
               <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-400 font-medium">
-                <span>Поддержка: 8 (800) 000-00-00</span>
+                <span>
+                  Поддержка:{' '}
+                  <a
+                    href={`tel:${storeSettings.phone.replace(/[^0-9+]/g, '')}`}
+                    className="text-zinc-600 hover:text-emerald-600 font-semibold transition-colors"
+                  >
+                    {storeSettings.phone}
+                  </a>
+                </span>
                 <span className="text-emerald-600 font-semibold">24/7 AI Online</span>
               </div>
             </motion.div>
