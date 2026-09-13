@@ -111,8 +111,9 @@ export default function ProductPage() {
   const [activeImage, setActiveImage] = useState(FALLBACK_IMAGE);
 
   useEffect(() => {
-    const handleResize = () =>
-      document.documentElement.classList.toggle('has-floating-bar', window.innerWidth < 1024);
+    const handleResize = () => {
+      document.documentElement.classList.toggle('has-floating-bar', window.innerWidth < 768);
+    };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => {
@@ -183,7 +184,7 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="mx-auto max-w-[1536px] px-2 py-2 sm:py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
+    <div className="mx-auto max-w-[1536px] px-2 pt-2 pb-44 sm:py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="hidden sm:flex flex-col gap-2 md:gap-4 md:flex-row md:items-center md:justify-between text-sm text-zinc-500 mb-2 sm:mb-8">
         <nav className="flex flex-wrap items-center gap-2 font-medium" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-emerald-600 transition-colors">Главная</Link>
@@ -502,7 +503,7 @@ export default function ProductPage() {
       )}
 
       {/* Mobile floating bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 border-t border-zinc-200 px-3 py-3 shadow-[0_-8px_30px_rgb(0,0,0,0.04)] backdrop-blur-lg">
+      <div className="md:hidden fixed bottom-14 left-0 right-0 z-30 bg-white/95 border-t border-zinc-200 px-3 py-2.5 shadow-[0_-8px_25px_rgb(0,0,0,0.06)] backdrop-blur-xl">
         <div className="flex items-center gap-3 max-w-md mx-auto">
           {product.inStock === 0 ? (
             <button disabled className="flex-1 bg-zinc-200 text-zinc-400 rounded-2xl h-12 font-bold text-sm cursor-not-allowed">

@@ -306,6 +306,7 @@ export default function ProfilePage() {
       label: 'Личные данные',
       icon: User,
       badge: null,
+      loading: false,
       description: 'Имя, телефон, адрес доставки',
     },
     {
@@ -313,6 +314,7 @@ export default function ProfilePage() {
       label: 'Мои заказы',
       icon: Package,
       badge: orders.length > 0 ? String(orders.length) : null,
+      loading: ordersLoading,
       description: 'История покупок и отслеживание',
     },
     {
@@ -320,6 +322,7 @@ export default function ProfilePage() {
       label: 'Купленные товары',
       icon: ShoppingBag,
       badge: purchases.length > 0 ? String(purchases.length) : null,
+      loading: purchasesLoading,
       description: 'Все купленные вами товары',
     },
     {
@@ -327,6 +330,7 @@ export default function ProfilePage() {
       label: 'Мои отзывы',
       icon: Star,
       badge: reviews.length > 0 ? String(reviews.length) : null,
+      loading: reviewsLoading,
       description: 'Оценки, отзывы и ответы магазина',
     },
     {
@@ -334,6 +338,7 @@ export default function ProfilePage() {
       label: 'Вопросы к товарам',
       icon: MessageSquare,
       badge: questions.length > 0 ? String(questions.length) : null,
+      loading: questionsLoading,
       description: 'Ваши вопросы и ответы поддержки',
     },
     {
@@ -341,6 +346,7 @@ export default function ProfilePage() {
       label: 'Безопасность',
       icon: Shield,
       badge: null,
+      loading: false,
       description: 'Пароль и уведомления',
     },
   ];
@@ -396,23 +402,23 @@ export default function ProfilePage() {
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'U';
 
   return (
-    <div className="bg-[#fbfbfd] min-h-screen pb-16 sm:pb-24">
+    <div className="bg-[#fbfbfd] min-h-screen pb-24 sm:pb-24">
       {/* Top Banner & User Profile Hero */}
       <div className="border-b border-zinc-200/70 bg-white">
-        <div className="mx-auto max-w-[1400px] px-4 py-8 sm:py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="mx-auto max-w-[1400px] px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* User Identity Info */}
             <div className="flex items-center gap-4 sm:gap-5">
-              <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-2xl sm:text-3xl font-black text-white shadow-lg shadow-emerald-500/20 ring-4 ring-white">
+              <div className="relative flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-xl sm:text-2xl font-black text-white shadow-lg shadow-emerald-500/20 ring-4 ring-white">
                 {userInitial}
-                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
-                  <CheckCircle2 size={12} />
+                <span className="absolute -bottom-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
+                  <CheckCircle2 size={11} />
                 </span>
               </div>
 
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 font-display">
+                  <h1 className="text-lg sm:text-2xl font-extrabold tracking-tight text-zinc-950 font-display">
                     {user?.name || 'Покупатель SmartMarket'}
                   </h1>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
@@ -421,259 +427,136 @@ export default function ProfilePage() {
                   </span>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs sm:text-sm text-zinc-500 font-medium">
-                  <Mail size={14} className="text-zinc-400" />
+                  <Mail size={13} className="text-zinc-400" />
                   <span>{user?.email || 'Не указан'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Quick Summary Cards (6 responsive metrics) */}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-2.5 max-w-2xl w-full self-stretch lg:self-auto">
-              {/* Orders */}
+            {/* Logout button */}
+            <div className="self-start sm:self-center">
               <button
-                onClick={() => setActiveTab('orders')}
-                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
-                  activeTab === 'orders'
-                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
-                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
-                }`}
+                onClick={async () => {
+                  await logout();
+                  router.push('/');
+                }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-200/80 bg-rose-50/70 px-3.5 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all active:scale-95"
               >
-                <div className="flex items-center gap-1 text-zinc-500 mb-1">
-                  <Package size={13} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">Заказы</span>
-                </div>
-                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
-                  {orders.length}
-                </span>
+                <LogOut size={14} />
+                <span>Выйти из аккаунта</span>
               </button>
-
-              {/* Purchases */}
-              <button
-                onClick={() => setActiveTab('purchases')}
-                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
-                  activeTab === 'purchases'
-                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
-                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
-                }`}
-              >
-                <div className="flex items-center gap-1 text-zinc-500 mb-1">
-                  <ShoppingBag size={13} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">Покупки</span>
-                </div>
-                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
-                  {purchases.length}
-                </span>
-              </button>
-
-              {/* Reviews */}
-              <button
-                onClick={() => setActiveTab('reviews')}
-                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
-                  activeTab === 'reviews'
-                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
-                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
-                }`}
-              >
-                <div className="flex items-center gap-1 text-zinc-500 mb-1">
-                  <Star size={13} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">Отзывы</span>
-                </div>
-                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
-                  {reviews.length}
-                </span>
-              </button>
-
-              {/* Questions */}
-              <button
-                onClick={() => setActiveTab('questions')}
-                className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border transition-all text-center ${
-                  activeTab === 'questions'
-                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs'
-                    : 'border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300'
-                }`}
-              >
-                <div className="flex items-center gap-1 text-zinc-500 mb-1">
-                  <MessageSquare size={13} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">Вопросы</span>
-                </div>
-                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums">
-                  {questions.length}
-                </span>
-              </button>
-
-              {/* Favorites Stat */}
-              <Link
-                href="/favorites"
-                className="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all text-center group"
-              >
-                <div className="flex items-center gap-1 text-zinc-500 mb-1 group-hover:text-rose-500 transition-colors">
-                  <Heart size={13} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">Избранное</span>
-                </div>
-                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums group-hover:text-rose-600 transition-colors">
-                  {favoritesCount}
-                </span>
-              </Link>
-
-              {/* Cart Stat */}
-              <Link
-                href="/cart"
-                className="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all text-center group"
-              >
-                <div className="flex items-center gap-1 text-zinc-500 mb-1 group-hover:text-emerald-600 transition-colors">
-                  <ShoppingBag size={13} />
-                  <span className="text-[10px] sm:text-[11px] font-bold">Корзина</span>
-                </div>
-                <span className="text-base sm:text-xl font-black text-zinc-950 font-display tabular-nums group-hover:text-emerald-600 transition-colors">
-                  {cartItemsCount}
-                </span>
-              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Workspace */}
-      <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8">
-        {/* Mobile Header with back button */}
+      {/* Main Workspace: Unified Tile-based Navigation */}
+      <div className="mx-auto max-w-[1400px] px-4 py-6 sm:py-8 sm:px-6 lg:px-8">
+        {/* On Mobile: Back button if tab is open */}
         {isMobile && activeTab && (
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-5">
             <button
               onClick={() => setActiveTab(null)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm border border-zinc-200/80 text-zinc-700 active:scale-95 transition-all"
-              aria-label="Назад к разделам"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white shadow-sm border border-zinc-200/80 text-xs font-bold text-zinc-700 active:scale-95 transition-all"
+              aria-label="Назад ко всем разделам"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
+              <span>Все разделы</span>
             </button>
-            <div>
-              <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">
-                Личный кабинет
-              </span>
-              <h2 className="text-lg font-bold text-zinc-950">
-                {menuItems.find((i) => i.id === activeTab)?.label}
-              </h2>
+            <h2 className="text-base font-bold text-zinc-950 truncate">
+              {menuItems.find((i) => i.id === activeTab)?.label}
+            </h2>
+          </div>
+        )}
+
+        {/* TILES (ПЛИТКИ): on desktop shown always as navigation bar at top; on mobile shown when activeTab === null */}
+        {(!isMobile || !activeTab) && (
+          <div className="mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3.5">
+              {menuItems.map((item) => {
+                const isActive = activeTab === item.id;
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`group relative flex flex-col justify-between p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl border text-left transition-all duration-200 active:scale-98 ${
+                      isActive
+                        ? 'bg-zinc-950 text-white border-zinc-950 shadow-md ring-2 ring-zinc-950/20'
+                        : 'bg-white text-zinc-900 border-zinc-200/80 hover:border-zinc-300 hover:bg-zinc-50/80 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <div
+                        className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl transition-colors ${
+                          isActive
+                            ? 'bg-white/15 text-emerald-400'
+                            : 'bg-zinc-100 text-zinc-600 group-hover:bg-emerald-50 group-hover:text-emerald-600'
+                        }`}
+                      >
+                        <Icon size={18} />
+                      </div>
+
+                      {/* Badge / Metric Count with Shimmer Skeleton when loading */}
+                      {item.loading ? (
+                        <span className="h-5 w-6 rounded-md bg-zinc-200/80 animate-pulse" />
+                      ) : item.badge !== null ? (
+                        <span
+                          className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums ${
+                            isActive
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-zinc-100 text-zinc-700 group-hover:bg-emerald-50 group-hover:text-emerald-700'
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      ) : (
+                        <ChevronRight
+                          size={15}
+                          className={`transition-transform ${
+                            isActive
+                              ? 'text-zinc-400 translate-x-0.5'
+                              : 'text-zinc-300 group-hover:text-zinc-500'
+                          }`}
+                        />
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="block text-xs sm:text-sm font-bold tracking-tight truncate">
+                        {item.label}
+                      </span>
+                      <span
+                        className={`block text-[10px] sm:text-[11px] truncate mt-0.5 ${
+                          isActive ? 'text-zinc-400' : 'text-zinc-400'
+                        }`}
+                      >
+                        {item.description}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
-        <div className="flex flex-col gap-6 lg:gap-8 md:flex-row items-start">
-          {/* Sidebar Menu */}
-          <AnimatePresence mode="wait">
-            {(!isMobile || !activeTab) && (
-              <motion.aside
-                initial={isMobile ? { opacity: 0, x: -20 } : false}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="w-full shrink-0 md:w-80"
-              >
-                <div className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white p-3 shadow-sm">
-                  <div className="px-3 py-2 text-xs font-extrabold uppercase tracking-wider text-zinc-400">
-                    Навигация
-                  </div>
-                  <nav className="flex flex-col gap-1 mt-1">
-                    {menuItems.map((item) => {
-                      const isActive = activeTab === item.id;
-                      const Icon = item.icon;
-
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => setActiveTab(item.id)}
-                          className={`group flex items-center justify-between rounded-2xl p-3.5 text-left transition-all ${
-                            isActive
-                              ? 'bg-zinc-950 text-white shadow-md'
-                              : 'text-zinc-700 hover:bg-zinc-50 hover:text-zinc-950'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                                isActive
-                                  ? 'bg-white/15 text-emerald-400'
-                                  : 'bg-zinc-100 text-zinc-600 group-hover:bg-emerald-50 group-hover:text-emerald-600'
-                              }`}
-                            >
-                              <Icon size={18} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <span className="block text-sm font-bold truncate">
-                                {item.label}
-                              </span>
-                              <span
-                                className={`block text-[11px] truncate mt-0.5 ${
-                                  isActive ? 'text-zinc-400' : 'text-zinc-400'
-                                }`}
-                              >
-                                {item.description}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 pl-2 shrink-0">
-                            {item.badge && (
-                              <span
-                                className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-extrabold tabular-nums ${
-                                  isActive
-                                    ? 'bg-emerald-500 text-white'
-                                    : 'bg-zinc-100 text-zinc-600 group-hover:bg-emerald-50 group-hover:text-emerald-700'
-                                }`}
-                              >
-                                {item.badge}
-                              </span>
-                            )}
-                            <ChevronRight
-                              size={16}
-                              className={`transition-transform ${
-                                isActive
-                                  ? 'text-zinc-400 translate-x-0.5'
-                                  : 'text-zinc-300 group-hover:text-zinc-500'
-                              }`}
-                            />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </nav>
-
-                  {/* Divider */}
-                  <div className="h-px bg-zinc-100 my-2 mx-3" />
-
-                  {/* Logout Button */}
-                  <button
-                    onClick={async () => {
-                      await logout();
-                      router.push('/');
-                    }}
-                    className="flex w-full items-center justify-between rounded-2xl p-3.5 text-sm font-bold text-rose-600 transition-all hover:bg-rose-50/80 active:scale-98"
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
-                        <LogOut size={18} />
-                      </div>
-                      <span className="text-sm font-bold">Выйти из аккаунта</span>
-                    </div>
-                  </button>
-                </div>
-              </motion.aside>
-            )}
-          </AnimatePresence>
-
-          {/* Main Content Area */}
-          <AnimatePresence mode="wait">
-            {activeTab && (
-              <motion.div
-                key={activeTab}
-                initial={isMobile ? { opacity: 0, x: 20 } : { opacity: 0 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={isMobile ? { opacity: 0, x: 20 } : { opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1 w-full rounded-3xl border border-zinc-200/80 bg-white p-6 sm:p-10 shadow-sm"
-              >
-                {renderContent()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        {/* Content Area */}
+        <AnimatePresence mode="wait">
+          {activeTab && (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="w-full rounded-3xl border border-zinc-200/80 bg-white p-5 sm:p-8 lg:p-10 shadow-sm"
+            >
+              {renderContent()}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Review Modal Dialog */}

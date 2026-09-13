@@ -19,6 +19,11 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
   const [query, setQuery] = useState(urlQuery);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Синхронизируем поле с URL на странице поиска
   useEffect(() => {
@@ -91,16 +96,17 @@ export function AISearchBar({ className = '', onResultClick }: AISearchBarProps)
 
       {/* Кнопка Поиск */}
       <button
+        suppressHydrationWarning
         type="submit"
-        disabled={!query.trim() || isSubmitting}
-        className="shimmer-btn flex items-center gap-1.5 rounded-2xl bg-zinc-950 px-4 py-2 sm:py-2.5 text-xs font-bold text-white whitespace-nowrap shadow-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all cursor-pointer"
+        disabled={mounted ? (!query.trim() || isSubmitting) : undefined}
+        className="shimmer-btn flex items-center justify-center gap-1.5 rounded-2xl bg-zinc-950 px-3 sm:px-3.5 lg:px-4 py-2 sm:py-2.5 text-xs font-bold text-white whitespace-nowrap shadow-sm hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95 transition-all cursor-pointer shrink-0"
       >
         {isSubmitting ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
         ) : (
           <Search className="h-3.5 w-3.5" />
         )}
-        <span className="hidden sm:inline">Поиск</span>
+        <span className="hidden md:inline">Поиск</span>
       </button>
     </form>
   );

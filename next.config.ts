@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import withPWAInit from '@ducanh2912/next-pwa';
+import withPWAInit, { runtimeCaching as defaultRuntimeCaching } from '@ducanh2912/next-pwa';
 
 const withPWA = withPWAInit({
   dest: 'public',
@@ -12,10 +12,17 @@ const withPWA = withPWAInit({
   aggressiveFrontEndNavCaching: false,
   // Переиспользуем SW сразу при обновлении
   reloadOnOnline: false,
+  extendDefaultRuntimeCaching: false,
   workboxOptions: {
     disableDevLogs: true,
     skipWaiting: true,
     clientsClaim: true,
+    // Исключаем /api/* из ServiceWorker кэширования:
+    // 1. SSE стриминг (/api/chat/stream) не может кэшироваться Workbox и приводит к ошибке перехвата SW.
+    // 2. Все API эндпоинты динамические (1С, авторизация, заказы, корзина, AI).
+    runtimeCaching: defaultRuntimeCaching.filter(
+      (entry) => entry.options?.cacheName !== 'apis'
+    ),
   },
 });
 

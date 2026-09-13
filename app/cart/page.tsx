@@ -172,7 +172,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-4 sm:py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
+    <div className="mx-auto max-w-[1400px] px-4 pt-4 pb-48 md:pb-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
       {/* Заголовок */}
       <div className="flex items-end justify-between border-b border-zinc-200/60 pb-4 mb-6 sm:mb-10">
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900">Корзина</h1>
@@ -432,7 +432,7 @@ export default function CartPage() {
             initial={{ y: 100 }}
             animate={{ y: 0 }}
             exit={{ y: 100 }}
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 border-t border-zinc-200/80 p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl"
+            className="md:hidden fixed bottom-14 left-0 right-0 z-30 bg-white/95 border-t border-zinc-200/80 px-4 py-3 shadow-[0_-8px_25px_rgba(0,0,0,0.08)] backdrop-blur-xl"
           >
             <div className="flex items-center justify-between max-w-md mx-auto gap-4">
               <div className="flex flex-col">

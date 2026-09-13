@@ -512,7 +512,7 @@ export function AIChatbot() {
     setChatStatus('Новый');
   };
 
-  const bottomClass = hasFloatingBar ? 'bottom-[88px] sm:bottom-6' : 'bottom-6';
+  const bottomClass = hasFloatingBar ? 'bottom-[130px] sm:bottom-[88px] md:bottom-6' : 'bottom-20 md:bottom-6';
 
   return (
     <>

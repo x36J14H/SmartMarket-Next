@@ -8,7 +8,14 @@ import { useEffect } from 'react';
  */
 export function PwaUpdater() {
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    if (typeof window === 'undefined') return;
+
+    // Очищаем устаревший кэш apis, оставшийся от предыдущей версии SW
+    if ('caches' in window) {
+      caches.delete('apis').catch(() => {});
+    }
+
+    if (!('serviceWorker' in navigator)) return;
 
     let refreshing = false;
     const handleControllerChange = () => {

@@ -24,7 +24,7 @@ export default function FavoritesPage() {
   }, [favorites.join(',')]);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
+    <div className="mx-auto max-w-[1400px] px-4 pt-8 pb-24 sm:pb-12 sm:px-6 lg:px-8 bg-zinc-50 min-h-screen">
       <div className="mb-12 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">Избранное</h1>
